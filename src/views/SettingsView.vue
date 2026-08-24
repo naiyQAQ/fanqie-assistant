@@ -1,18 +1,27 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { settings, flushSettings } from '../settings'
+import { settings, flushSettings, DEFAULT_SETTINGS } from '../settings'
 import { provisionDevice } from '../api/provision'
 import config from '../config'
 import { version } from '../../package.json'
 
 const emit = defineEmits<{ (e: 'close'): void }>()
 
-type SectionKey = 'general' | 'ui' | 'search' | 'protocol' | 'about'
+/** 请求节奏恢复默认，其余下载设置不动 */
+function resetDownloadTuning() {
+    settings.downloadBatchSize = DEFAULT_SETTINGS.downloadBatchSize
+    settings.downloadInterval = DEFAULT_SETTINGS.downloadInterval
+    settings.downloadRetries = DEFAULT_SETTINGS.downloadRetries
+    flushSettings()
+}
+
+type SectionKey = 'general' | 'ui' | 'search' | 'download' | 'protocol' | 'about'
 
 const SECTIONS: Array<{ key: SectionKey; label: string }> = [
     { key: 'general', label: '常规' },
     { key: 'ui', label: '界面' },
     { key: 'search', label: '搜索' },
+    { key: 'download', label: '下载' },
     { key: 'protocol', label: '协议' },
     { key: 'about', label: '关于' },
 ]
@@ -166,6 +175,113 @@ const GITHUB = 'https://github.com/naiyQAQ/fanqie-assistant'
                             开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。
                             凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。
                         </p>
+                    </div>
+                </template>
+
+                <!-- 下载 -->
+                <template v-else-if="active === 'download'">
+                    <h3 class="fqa-set-h">下载</h3>
+
+                    <label class="fqa-set-row">
+                        <span class="fqa-set-label">显示下载入口</span>
+                        <input v-model="settings.enableDownload" type="checkbox" class="fqa-set-switch" />
+                    </label>
+
+                    <div class="fqa-set-row fqa-set-row-col">
+                        <span class="fqa-set-label">默认格式</span>
+                        <div class="fqa-set-radios">
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.downloadFormat" type="radio" value="epub" />
+                                <span>EPUB</span>
+                            </label>
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.downloadFormat" type="radio" value="txt" />
+                                <span>TXT</span>
+                            </label>
+                        </div>
+                        <p class="fqa-set-note">
+                            EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。
+                        </p>
+                    </div>
+
+                    <div class="fqa-set-row fqa-set-row-col">
+                        <span class="fqa-set-label">TXT 编码</span>
+                        <div class="fqa-set-radios">
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.downloadCharset" type="radio" value="utf-8" />
+                                <span>UTF-8</span>
+                            </label>
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.downloadCharset" type="radio" value="gbk" />
+                                <span>GBK</span>
+                            </label>
+                        </div>
+                        <p class="fqa-set-note">EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。</p>
+                    </div>
+
+                    <div class="fqa-set-row fqa-set-row-col">
+                        <span class="fqa-set-label">EPUB 选项</span>
+                        <label class="fqa-set-row" style="padding-top: 0; border-bottom: none">
+                            <span class="fqa-set-label">下载正文插图</span>
+                            <input v-model="settings.downloadImages" type="checkbox" class="fqa-set-switch" />
+                        </label>
+                        <label class="fqa-set-row" style="padding-top: 0; border-bottom: none">
+                            <span class="fqa-set-label">保留书籍排版样式</span>
+                            <input v-model="settings.downloadBookCss" type="checkbox" class="fqa-set-switch" />
+                        </label>
+                        <label class="fqa-set-row" style="padding-top: 0; border-bottom: none">
+                            <span class="fqa-set-label">为每卷生成卷页</span>
+                            <input v-model="settings.downloadVolumePage" type="checkbox" class="fqa-set-switch" />
+                        </label>
+                        <p class="fqa-set-note">
+                            插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。
+                        </p>
+                    </div>
+
+                    <div class="fqa-set-row fqa-set-row-col">
+                        <span class="fqa-set-label">请求节奏</span>
+                        <p class="fqa-set-warn">
+                            接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。
+                        </p>
+
+                        <label class="fqa-set-field">
+                            <span>每批章节数（1-30）</span>
+                            <input
+                                v-model.number="settings.downloadBatchSize"
+                                class="fqa-set-input"
+                                type="number"
+                                min="1"
+                                max="30"
+                            />
+                        </label>
+                        <label class="fqa-set-field">
+                            <span>批次间隔 (ms)</span>
+                            <input
+                                v-model.number="settings.downloadInterval"
+                                class="fqa-set-input"
+                                type="number"
+                                min="0"
+                                max="10000"
+                                step="50"
+                            />
+                        </label>
+                        <label class="fqa-set-field">
+                            <span>重试轮数</span>
+                            <input
+                                v-model.number="settings.downloadRetries"
+                                class="fqa-set-input"
+                                type="number"
+                                min="0"
+                                max="10"
+                            />
+                        </label>
+                        <p class="fqa-set-note">
+                            实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。
+                        </p>
+
+                        <div class="fqa-set-actions">
+                            <button class="fqa-set-btn" @click="resetDownloadTuning">恢复推荐值</button>
+                        </div>
                     </div>
                 </template>
 

@@ -4,6 +4,7 @@ import fetchHook from "./fetchHook";
 import userHook from "./userHook";
 import bookshelfHook from "./bookshelfHook";
 import searchHook from "./searchHook";
+import downloadHook from "./downloadHook";
 
 const hooks: HookConfig[] = [
     ...readerHook,
@@ -11,6 +12,7 @@ const hooks: HookConfig[] = [
     ...userHook,
     ...bookshelfHook,
     ...searchHook,
+    ...downloadHook,
 ];
 
 async function onEvent(event: HookEvent, previous?: string) {

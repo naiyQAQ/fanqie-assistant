@@ -6,6 +6,8 @@ import BookHoverCard from './BookHoverCard.vue'
 import ContextMenu from './ContextMenu.vue'
 import { TABS, useBookshelf } from './useBookshelf'
 import { moveToGroup, removeFromBookshelf } from '../api/bookshelf'
+import { startDownload } from '../download'
+import { settings } from '../settings'
 import type { BookShelfEntry, BookShelfGroup, BookShelfTabKey, MenuItem } from '../types'
 
 /** 持续悬停多久后展示详情 */
@@ -266,6 +268,7 @@ function showToast(msg: string) {
 
 const MOVE_PREFIX = 'move:'
 const NO_GROUP_KEY = `${MOVE_PREFIX}`
+const DOWNLOAD_PREFIX = 'download:'
 
 const menuItems = computed<MenuItem[]>(() => {
     const entry = menuEntry.value
@@ -279,7 +282,7 @@ const menuItems = computed<MenuItem[]>(() => {
     // 已经在某个分组里时，额外给一个移出分组的选项
     if (current) targets.push({ key: NO_GROUP_KEY, label: '无分组' })
 
-    return [
+    const items: MenuItem[] = [
         { key: 'open', label: '打开' },
         { key: 'detail', label: '查看详情' },
         {
@@ -287,9 +290,20 @@ const menuItems = computed<MenuItem[]>(() => {
             label: '移动到分组',
             disabled: targets.length === 0,
             children: targets
-        },
-        { key: 'remove', label: '从书架删除', danger: true }
+        }
     ]
+    if (settings.enableDownload) {
+        items.push({
+            key: 'download',
+            label: '下载',
+            children: [
+                { key: `${DOWNLOAD_PREFIX}epub`, label: 'EPUB' },
+                { key: `${DOWNLOAD_PREFIX}txt`, label: 'TXT' }
+            ]
+        })
+    }
+    items.push({ key: 'remove', label: '从书架删除', danger: true })
+    return items
 })
 
 function onCardContextMenu({ entry, x, y }: { entry: BookShelfEntry; x: number; y: number }) {
@@ -310,6 +324,11 @@ async function onMenuSelect(key: string) {
     }
     if (key === 'detail') {
         unsafeWindow.location.href = `https://fanqienovel.com/page/${bookId}`
+        return
+    }
+    if (key.startsWith(DOWNLOAD_PREFIX)) {
+        const format = key.slice(DOWNLOAD_PREFIX.length) as 'epub' | 'txt'
+        void startDownload(bookId, { format })
         return
     }
     if (key === 'remove') {

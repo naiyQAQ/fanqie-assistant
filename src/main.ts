@@ -6,6 +6,7 @@ import { onLoad, onUrlChange, onHashChange, onEnter } from './hooks'
 import { version, name } from '../package.json'
 import initUser from './api/user'
 import { ensureDevice } from './api/provision'
+import { initDownloadPanel } from './downloadPanel'
 
 const win = unsafeWindow
 
@@ -53,6 +54,9 @@ async function mainInit() {
 
     // 用户自定义样式（阅读器字体 / 自定义 CSS）
     initUserStyle()
+
+    // 下载进度弹窗随任务自动显示
+    initDownloadPanel()
 
     // APP 接口需要已注册的设备（首次会注册并激活会员，之后走本地缓存）
     await ensureDevice()

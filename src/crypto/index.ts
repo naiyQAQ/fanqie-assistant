@@ -59,10 +59,6 @@ export function hex(buffer: ArrayBuffer): string {
     return hexString;
 }
 
-/**
- * PKCS#7 填充。注意 WebCrypto 的 AES-CBC 会自动补 PKCS#7，
- * 只有在需要手动分块（如 Simon/Speck）时才要调用本函数。
- */
 export function pkcs7Pad(data: Uint8Array, blockSize = 16): Uint8Array<ArrayBuffer> {
     const padLength = blockSize - (data.length % blockSize);
     const padded = new Uint8Array(data.length + padLength);

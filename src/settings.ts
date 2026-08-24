@@ -6,6 +6,12 @@ const STORE_KEY = 'settings'
 /** API 偏好 */
 export type ApiPreference = 'app' | 'redcandle'
 
+/** 下载格式 */
+export type DownloadFormat = 'epub' | 'txt'
+
+/** TXT 编码 */
+export type DownloadCharset = 'utf-8' | 'gbk'
+
 export interface Settings {
     /* --- 常规 --- */
     /** 解密网页端混淆字体 */
@@ -29,6 +35,26 @@ export interface Settings {
     /** 搜索时携带登录态以获取个人化推荐 */
     searchPersonalized: boolean
 
+    /* --- 下载 --- */
+    /** 注入下载入口（详情页按钮、右键菜单） */
+    enableDownload: boolean
+    /** 默认下载格式 */
+    downloadFormat: DownloadFormat
+    /** TXT 编码。EPUB 固定 UTF-8 */
+    downloadCharset: DownloadCharset
+    /** 每批请求的章节数，服务端上限 30 */
+    downloadBatchSize: number
+    /** 两批之间的间隔（ms），太小会被限流 */
+    downloadInterval: number
+    /** 失败章节的重试轮数 */
+    downloadRetries: number
+    /** EPUB：为每卷生成独立的卷页 */
+    downloadVolumePage: boolean
+    /** EPUB：下载正文插图（会明显变慢，且体积变大） */
+    downloadImages: boolean
+    /** EPUB：保留书籍自带的排版样式（css_map） */
+    downloadBookCss: boolean
+
     /* --- 协议 --- */
     apiPreference: ApiPreference
     /** 用户手动指定的设备信息，留空表示用脚本自动注册的设备 */
@@ -49,6 +75,18 @@ export const DEFAULT_SETTINGS: Settings = {
     enhanceSearch: true,
     // 默认关：携带登录态属于额外的隐私暴露，交给用户显式开启
     searchPersonalized: false,
+
+    enableDownload: true,
+    downloadFormat: 'epub',
+    downloadCharset: 'utf-8',
+    // 30 是接口单请求返回正文的上限，再大也只回 30 条
+    downloadBatchSize: 30,
+    // 实测 750ms 能稳定拿满，更短会被限流成每次 1 条
+    downloadInterval: 750,
+    downloadRetries: 3,
+    downloadVolumePage: false,
+    downloadImages: true,
+    downloadBookCss: true,
 
     apiPreference: 'app',
     deviceId: '',
@@ -72,7 +110,23 @@ function normalize(raw: unknown): Settings {
     if (s.apiPreference !== 'app' && s.apiPreference !== 'redcandle') {
         s.apiPreference = DEFAULT_SETTINGS.apiPreference
     }
+    if (s.downloadFormat !== 'epub' && s.downloadFormat !== 'txt') {
+        s.downloadFormat = DEFAULT_SETTINGS.downloadFormat
+    }
+    if (s.downloadCharset !== 'utf-8' && s.downloadCharset !== 'gbk') {
+        s.downloadCharset = DEFAULT_SETTINGS.downloadCharset
+    }
+    // 数字项来自输入框，可能是 NaN 或越界值
+    s.downloadBatchSize = clampInt(s.downloadBatchSize, 1, 30, DEFAULT_SETTINGS.downloadBatchSize)
+    s.downloadInterval = clampInt(s.downloadInterval, 0, 10_000, DEFAULT_SETTINGS.downloadInterval)
+    s.downloadRetries = clampInt(s.downloadRetries, 0, 10, DEFAULT_SETTINGS.downloadRetries)
     return s
+}
+
+function clampInt(value: number, min: number, max: number, fallback: number): number {
+    const n = Math.round(Number(value))
+    if (!Number.isFinite(n)) return fallback
+    return Math.min(max, Math.max(min, n))
 }
 
 /** 全局设置对象。直接改字段即可，会自动持久化 */

@@ -5,6 +5,7 @@ import SearchLanding from './SearchLanding.vue'
 import ContextMenu from './ContextMenu.vue'
 import { useSearch } from './useSearch'
 import { addToBookshelf } from '../api/bookshelf'
+import { startDownload } from '../download'
 import { settings } from '../settings'
 import { userState } from '../api/user'
 import { pushQuery, routeQuery } from './searchRoute'
@@ -35,6 +36,8 @@ const {
 /** 输入框内容，回车/点按钮时才同步到 query */
 const input = ref(routeQuery.value)
 const filterOpen = ref(false)
+
+const DOWNLOAD_PREFIX = 'download:'
 
 /** 无搜索词时展示落地页 */
 const showLanding = computed(() => !query.value.trim())
@@ -120,15 +123,28 @@ function showToast(msg: string) {
     }, 2600)
 }
 
-const menuItems = computed<MenuItem[]>(() => [
-    { key: 'detail', label: '查看详情' },
-    {
-        key: 'shelf',
-        label: menuBook.value?.in_bookshelf ? '已在书架' : '加入书架',
-        disabled: !userState.isLogin || Boolean(menuBook.value?.in_bookshelf),
-    },
-    { key: 'author', label: '搜索该作者', disabled: !menuBook.value?.author },
-])
+const menuItems = computed<MenuItem[]>(() => {
+    const items: MenuItem[] = [
+        { key: 'detail', label: '查看详情' },
+        {
+            key: 'shelf',
+            label: menuBook.value?.in_bookshelf ? '已在书架' : '加入书架',
+            disabled: !userState.isLogin || Boolean(menuBook.value?.in_bookshelf),
+        },
+        { key: 'author', label: '搜索该作者', disabled: !menuBook.value?.author },
+    ]
+    if (settings.enableDownload) {
+        items.push({
+            key: 'download',
+            label: '下载',
+            children: [
+                { key: `${DOWNLOAD_PREFIX}epub`, label: 'EPUB' },
+                { key: `${DOWNLOAD_PREFIX}txt`, label: 'TXT' },
+            ],
+        })
+    }
+    return items
+})
 
 function onCardContextMenu({ book, x, y }: { book: SearchBook; x: number; y: number }) {
     menuBook.value = book
@@ -150,6 +166,11 @@ async function onMenuSelect(key: string) {
     }
     if (key === 'author') {
         void doSearch(book.author)
+        return
+    }
+    if (key.startsWith(DOWNLOAD_PREFIX)) {
+        const format = key.slice(DOWNLOAD_PREFIX.length) as 'epub' | 'txt'
+        void startDownload(book.book_id, { format })
         return
     }
     if (key === 'shelf') {

@@ -2,6 +2,26 @@ export async function sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
+/**
+ * 让出一帧，给浏览器重绘的机会。
+ *
+ * 长时间同步计算（批量解析/序列化正文）中途要插几次，否则界面看起来是卡住的。
+ * requestAnimationFrame 在后台标签页里不触发，所以加一个 setTimeout 兜底。
+ */
+export function nextFrame(): Promise<void> {
+    return new Promise(resolve => {
+        let settled = false
+        const done = () => {
+            if (settled) return
+            settled = true
+            resolve()
+        }
+        const raf = (unsafeWindow as Window & typeof globalThis).requestAnimationFrame
+        if (typeof raf === 'function') raf(() => done())
+        setTimeout(done, 32)
+    })
+}
+
 export function cloneElement<T extends Element>(element: T): T {
     return element.cloneNode(true) as T;
 }

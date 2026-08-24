@@ -17,22 +17,17 @@ export function mappingCreationStatus(status: string): string {
 }
 
 /**
- * 书籍详情，对应 APP 的 /bookapi/multi-detail/v。
+ * 书籍详情，对应 APP 的 /bookapi/detail/v。
  * 响应字段与红烛接口一致，签名通用。
  */
 export async function getBookInfoRaw(bookId: string): Promise<any> {
-    const response = await appGet('/bookapi/multi-detail/v', { book_id: bookId })
+    const response = await appGet('/bookapi/detail/v', { book_id: bookId })
     const j: any = response.json()
     console.log('Book Info:', j)
-    if (
-        typeof j === 'object' &&
-        j !== null &&
-        'data' in j &&
-        Array.isArray(j.data) &&
-        j.data.length > 0
-    ) return j.data[0]
-    return null
+    return j.data
 }
+
+export async function multiDetailRaw() {}
 
 export async function getBookInfo(bookId: string): Promise<Book> {
     const bookInfo = await getBookInfoRaw(bookId)

@@ -4,6 +4,7 @@ import { b64decode, b64encode } from '../crypto'
 import { read, write } from '../localStorage'
 import { decryptChapter } from '../crypto/content'
 import { encryptKeyinfoBody, decryptKeyinfoResponse } from '../crypto/registerkey'
+import { sleep } from '../utils'
 
 
 async function refreshKeyinfo(): Promise<void> {
@@ -27,6 +28,24 @@ async function refreshKeyinfo(): Promise<void> {
     }) // cache key info
 }
 
+/** 正在进行的注册。并发调用共享同一次，避免彼此覆盖刚拿到的密钥 */
+let refreshInflight: Promise<void> | null = null
+
+/**
+ * 强制重新注册密钥，绕过本地缓存。
+ *
+ * 设备长时间没用过，服务端的密钥注册会失效：此时 keyver 往往还和本地一致，
+ * 但正文一律返回 'Invalid'。这种情况只能重新注册，读缓存没有意义。
+ */
+export function refreshKey(): Promise<void> {
+    if (!refreshInflight) {
+        refreshInflight = refreshKeyinfo().finally(() => {
+            refreshInflight = null
+        })
+    }
+    return refreshInflight
+}
+
 async function ensureKeyinfo(expectedKeyVersion?: number): Promise<void> {
     const keyinfo = config.currentConfig.key_info
     const cachedKeyInfo = read('keyinfo')
@@ -43,11 +62,11 @@ async function ensureKeyinfo(expectedKeyVersion?: number): Promise<void> {
     }
     if (!keyinfo) {
         // get from zero
-        return await refreshKeyinfo()
+        return await refreshKey()
     }
     if (keyinfo?.keyver !== expectedKeyVersion) {
         // refresh from server
-        return await refreshKeyinfo()
+        return await refreshKey()
     }
 }
 
@@ -68,7 +87,13 @@ export async function getChapter(itemId: string, _retry?: number): Promise<any> 
     }
     if (j?.content === 'Invalid' || j?.key_version !== config.currentConfig.key_info?.keyver) { // keyreg expired
         console.warn('Key reg expired, regster again and retrying...')
-        await ensureKeyinfo(parseInt(j?.key_version))
+        // content 是 'Invalid' 时说明注册本身失效了，keyver 可能还和本地一样，
+        // 这时候走 ensureKeyinfo 会命中缓存直接返回，密钥还是坏的，必须强制重注册
+        if (j?.content === 'Invalid') {
+            await refreshKey()
+        } else {
+            await ensureKeyinfo(parseInt(j?.key_version))
+        }
         return await getChapter(itemId, _retry + 1)
     }
     j.content = await decryptChapter(j?.content, j, config.currentConfig)
@@ -90,6 +115,7 @@ export interface BatchChapter {
 export async function getChapters(
     itemIds: string[],
     bookId = '0',
+    _retry = 0,
 ): Promise<Record<string, BatchChapter>> {
     if (itemIds.length === 0) return {}
     if (!config.currentConfig.key_info) {
@@ -102,7 +128,7 @@ export async function getChapters(
         novel_text_type: '1',
         req_type: '1',
     })
-    
+
     const raw = res.json()?.data
     const entries: Array<[string, any]> = raw && typeof raw === 'object'
         ? (Array.isArray(raw)
@@ -112,6 +138,33 @@ export async function getChapters(
 
     if (entries.length === 0) {
         throw new Error(`Failed to batch get chapters: ${res.responseText}`)
+    }
+
+    // 密钥失效的表现：content 是 'Invalid'，或者 key_version 和本地不一致。
+    // 设备闲置一段时间后服务端会撤销密钥注册，此时 keyver 常常还和本地相同，
+    // 只有正文变成 'Invalid'，所以两种情况都要算上。
+    // 单章的 getChapter 早就处理了这个，批量以前只是标记失败，
+    // 于是整本书的所有分片都会失败（重试也没用，密钥还是旧的）。
+    const localKeyver = config.currentConfig.key_info?.keyver
+    const expired = entries.filter(([, item]) =>
+        item?.code === 0 || item?.code === undefined
+            ? item?.content === 'Invalid' ||
+              (item?.key_version !== undefined && Number(item.key_version) !== localKeyver)
+            : false
+    )
+
+    if (expired.length > 0 && _retry < 2) {
+        const [, sample] = expired[0]!
+        console.warn(
+            `[fqa:api] 批量正文密钥失效（${expired.length}/${entries.length} 章），` +
+            `重新注册后重试。本地 keyver=${localKeyver}，服务端=${sample?.key_version}`
+        )
+        // 强制重新注册：keyver 可能没变，走 ensureKeyinfo 会命中缓存直接返回
+        await refreshKey()
+        // 背靠背的请求会被限流成每次只回 1 章，重试前先等一下，
+        // 否则密钥虽然修好了，这一批还是只能拿回一章
+        await sleep(800)
+        return await getChapters(itemIds, bookId, _retry + 1)
     }
 
     const results: Record<string, BatchChapter> = {}
