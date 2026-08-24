@@ -42,10 +42,11 @@ export default defineConfig({
       },
       build: {
         fileName: 'fanqie-assistant.user.js',
-        // vue / moment 走 CDN @require，不打进脚本体积
+        // vue / moment / jszip 走 CDN @require，不打进脚本体积
         externalGlobals: {
           vue: tocdn('Vue', 'dist/vue.global.prod.js'),
           moment: tocdn('moment', 'min/moment.min.js'),
+          jszip: tocdn('JSZip', 'dist/jszip.min.js'),
         },
       },
     }),
