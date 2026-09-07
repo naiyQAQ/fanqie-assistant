@@ -15,13 +15,14 @@ function resetDownloadTuning() {
     flushSettings()
 }
 
-type SectionKey = 'general' | 'ui' | 'search' | 'download' | 'protocol' | 'about'
+type SectionKey = 'general' | 'ui' | 'search' | 'download' | 'audiobook' | 'protocol' | 'about'
 
 const SECTIONS: Array<{ key: SectionKey; label: string }> = [
     { key: 'general', label: '常规' },
     { key: 'ui', label: '界面' },
     { key: 'search', label: '搜索' },
     { key: 'download', label: '下载' },
+    { key: 'audiobook', label: '听书' },
     { key: 'protocol', label: '协议' },
     { key: 'about', label: '关于' },
 ]
@@ -150,6 +151,24 @@ const GITHUB = 'https://github.com/naiyQAQ/fanqie-assistant'
                             placeholder="/* 自定义 CSS */"
                         ></textarea>
                         <p class="fqa-set-note">关闭开关后内容会保留，只是不再应用。</p>
+                    </div>
+
+                    <div class="fqa-set-row fqa-set-row-col">
+                        <span class="fqa-set-label">书架单击书本</span>
+                        <div class="fqa-set-radios">
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.bookshelfClickAction" type="radio" value="read" />
+                                <span>继续阅读</span>
+                            </label>
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.bookshelfClickAction" type="radio" value="detail" />
+                                <span>查看详情</span>
+                            </label>
+                        </div>
+                        <p class="fqa-set-note">
+                            按住 Ctrl 单击去往另一项；中键在新标签页打开，Ctrl+中键同样反向。
+                            选「继续阅读」但这本书还没读过时，会退回详情页。
+                        </p>
                     </div>
                 </template>
 
@@ -283,6 +302,36 @@ const GITHUB = 'https://github.com/naiyQAQ/fanqie-assistant'
                             <button class="fqa-set-btn" @click="resetDownloadTuning">恢复推荐值</button>
                         </div>
                     </div>
+                </template>
+
+                <!-- 听书 -->
+                <template v-else-if="active === 'audiobook'">
+                    <h3 class="fqa-set-h">听书</h3>
+
+                    <div class="fqa-set-row fqa-set-row-col">
+                        <span class="fqa-set-label">读完一章后</span>
+                        <div class="fqa-set-radios">
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.audiobookChapterEnd" type="radio" value="next" />
+                                <span>自动下一章</span>
+                            </label>
+                            <label class="fqa-set-radio">
+                                <input v-model="settings.audiobookChapterEnd" type="radio" value="stop" />
+                                <span>停止播放</span>
+                            </label>
+                        </div>
+                        <p class="fqa-set-note">
+                            自动下一章会点击页面上的「下一章」，读到全书最后一章时自动停下。
+                        </p>
+                    </div>
+
+                    <label class="fqa-set-row">
+                        <span class="fqa-set-label">高亮并跟随朗读段落</span>
+                        <input v-model="settings.audiobookFollow" type="checkbox" class="fqa-set-switch" />
+                    </label>
+                    <p class="fqa-set-note">
+                        关闭后仍会高亮当前段落，但不再自动滚动页面。点击任意段落可跳到该处朗读。
+                    </p>
                 </template>
 
                 <!-- 协议 -->

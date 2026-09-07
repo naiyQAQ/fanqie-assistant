@@ -79,3 +79,8 @@ export function concatArrayBuffers(...buffers: ArrayBuffer[]): ArrayBuffer {
     }
     return result.buffer
 }
+
+export function clearNodeEventListeners<T extends Element>(element: T): void {
+    element.replaceWith(cloneElement(element))
+    return
+}

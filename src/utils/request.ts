@@ -6,6 +6,30 @@ export type ApiResponse = Tampermonkey.Response<unknown> & {
     json<T = unknown>(): T;
 };
 
+/**
+ * 响应没有任何正文。
+ *
+ * 番茄网关对「不认识的设备」就是这个回应：HTTP 200、`content-length: 0`、
+ * 一个字节都没有。裸 JSON.parse 会抛 `SyntaxError: "undefined" is not valid JSON`
+ * （Tampermonkey 在无正文时不给 responseText），完全看不出真正的原因，
+ * 所以这里换成一个能认出来的错误类型。
+ */
+export class EmptyResponseError extends Error {
+    readonly status: number;
+
+    constructor(status: number) {
+        super(`服务端返回了空响应体(HTTP ${status})`);
+        this.name = "EmptyResponseError";
+        this.status = status;
+    }
+}
+
+/** 响应体是否为空。Tampermonkey 可能给 undefined，也可能给空串 */
+export function isEmptyResponse(res: Pick<Tampermonkey.ResponseBase, "responseText">): boolean {
+    const text = res.responseText;
+    return typeof text !== "string" || text === "";
+}
+
 const supportedMethods = new Set<GMRequestMethod>([
     "GET",
     "HEAD",
@@ -59,6 +83,9 @@ export default function apiFetch(
                 cleanup();
                 resolve(Object.assign(response, {
                     json<T = unknown>(this: Tampermonkey.Response<unknown>): T {
+                        if (isEmptyResponse(this)) {
+                            throw new EmptyResponseError(this.status);
+                        }
                         return JSON.parse(this.responseText) as T;
                     },
                 }));

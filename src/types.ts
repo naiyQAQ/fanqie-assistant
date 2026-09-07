@@ -210,3 +210,131 @@ export interface SearchLandingSection {
     words: SearchHotWord[]
     books: SearchSuggestBook[]
 }
+
+/* --------------------------------- 书评 --------------------------------- */
+
+/** 评论作者。头衔（vip/作者等）接口下发的是内嵌 JSON 字符串，这里只留解析后的名字 */
+export interface CommentUser {
+    user_id: string
+    name: string
+    avatar: string
+    description: string
+    is_author: boolean
+    is_vip: boolean
+    /** 头衔名，如 vip、榜一大哥 */
+    titles: string[]
+}
+
+/**
+ * 正文里的富文本片段（书名号引用、话题等）。
+ *
+ * s/e 是 UTF-16 码元下标（实测与 String.prototype.slice 一致，
+ * 不是 UTF-8 字节，也不是码点序号）。tp 目前只见过 4 = 搜索跳转。
+ */
+export interface CommentTextExt {
+    start: number
+    end: number
+    text: string
+    type: number
+    /** dragon1967:// 开头的 APP 内部 schema，网页端点不了，仅保留原文 */
+    uri?: string
+}
+
+/** 评论与回复共有的部分 */
+export interface CommentBase {
+    id: string
+    text: string
+    /** 富文本片段，可能为空 */
+    exts: CommentTextExt[]
+    /** 秒级时间戳 */
+    create_time: number
+    user: CommentUser
+    digg_count: number
+    reply_count: number
+    /** 当前用户是否赞过。未登录（或读不到 sessionid）时恒为 false */
+    user_digg: boolean
+    user_disagree: boolean
+}
+
+/** 一楼书评 */
+export interface BookComment extends CommentBase {
+    /** 评分，1-10，缺失为 0 */
+    score: number
+    /** 接口下发的展示文案，如「阅读19小时后点评」 */
+    score_text: string
+    /** 作者置顶 */
+    author_stick: boolean
+    /** 追评。同一用户在原评论之后补写的内容 */
+    addition?: CommentBase
+    /** 接口下发的前几条回复，展开前先用它 */
+    preview_reply_count: number
+}
+
+/** 楼中楼回复。二级回复挂在 sub 里 */
+export interface CommentReply extends CommentBase {
+    /** 所属评论 id */
+    to_comment_id: string
+    /** 二级回复时，父回复的 id */
+    to_reply_id: string
+    /** 接口预览下发的子回复 */
+    sub: CommentReply[]
+}
+
+/** 书评区筛选标签，如「长评」「文笔很好」 */
+export interface CommentFilterTag {
+    tag_id: string
+    tag_name: string
+    count: number
+}
+
+/** 评论排序。1=最热，3=最新（其余值接口报参数错误） */
+export type CommentSort = 1 | 3
+
+export interface CommentListResult {
+    comments: BookComment[]
+    /** 服务端游标，原样回传即可翻页 */
+    cursor: string
+    has_more: boolean
+    /** 该书评论总数（受 tag 过滤影响） */
+    total: number
+    tags: CommentFilterTag[]
+    /** 点评人数展示文案，如「1.1万人点评」 */
+    score_text: string
+    score_count: number
+    /**
+     * 当前登录用户自己写的那条书评 / 打分。
+     * 服务端把它单独放在 extra.user_comment，不混在列表里；
+     * 没登录或还没点评过时为 null。打过分后即可用它回显星级。
+     */
+    user_comment: BookComment | null
+}
+
+export interface ReplyListResult {
+    replies: CommentReply[]
+    cursor: string
+    has_more: boolean
+    total: number
+}
+
+export interface CencAudioContext {
+    urls: string[]
+    vid: string
+    key: string // empty for a not encrypted audio
+    item_id: string
+}
+
+export interface Tone {
+    id: number
+    name: string
+    icon: string // 空字符串是没有图标
+    gender: number // 1=男声 2=女声
+    description: string
+}
+
+export interface ParagraphTimeTag {
+    is_title: boolean // idx=10000 就是标题
+    startidx: number
+    endidx: number
+    startms: number
+    endms: number
+}

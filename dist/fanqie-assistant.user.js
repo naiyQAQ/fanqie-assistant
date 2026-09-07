@@ -16,7 +16,11 @@
 // @connect      byteimg.com
 // @connect      fqnovelpic.com
 // @connect      bytecdn.cn
+// @connect      fqnovelvod.com
+// @connect      novelfmvod.com
+// @connect      volcautovod.com
 // @grant        GM_addStyle
+// @grant        GM_cookie
 // @grant        GM_deleteValue
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -42,7 +46,7 @@
   const _config = {
     currentConfig: defaultConfig
   };
-  const scriptcss = "/* 移除章节锁定图标 */\n.muyeicon-lock {\n	display: none;\n}\n/* 移除APP推广图标 */\n.muye-to-fanqie {\n	display: none!important;\n}\n.reader-toolbar-item-download {\n	display: none!important;\n}\n.download-btn {\n	display: none!important;\n}\n.download-icon {\n	display: none!important;\n}\n\n.fqa-hide {\n	display: none!important;\n}\n/* 404 */\n.no-content {\n	display: none!important;\n}\n\n.fqa-comic-img {\n	width: 100%!important;\n	height: 100%!important;\n	max-width: 100%!important;\n	max-height: 100%!important;\n	padding-top: 0!important;\n	padding-bottom: 0!important;\n	margin-top: 0!important;\n	margin-bottom: 0!important;\n}\n\n.fqa-comic-reader {\n	line-height: 0!important;\n}\n\n.fqa-menu-item,\n.arco-menu-item {\n	width: 100%!important;\n}\n\n#dynamic-el {\n	display: none!important;\n}\n\n.fqa-footnote-ref {\n	display: inline-block;\n	margin: 0 0.15em;\n	padding: 0 0.25em;\n	font-size: 0.7em;\n	line-height: 1.4;\n	vertical-align: super;\n	color: var(--web-brand_normal, #f14646);\n	cursor: pointer;\n	user-select: none;\n	border-radius: 3px;\n	text-indent: 0;\n}\n\n.fqa-footnote-ref:hover,\n.fqa-footnote-ref:focus-visible {\n	background: var(--web-brand_light, rgba(241, 70, 70, 0.12));\n	outline: none;\n}\n\n\n.fqa-footnote {\n	margin-top: 2em;\n	padding-top: 1em;\n	border-top: 1px solid var(--web-gray_20, rgba(128, 128, 128, 0.25));\n	font-size: var(--fqa-body-size, 1.6rem);\n}\n\n.muye-reader-content-16 .fqa-footnote { font-size: var(--fqa-body-size, 1.6rem); }\n.muye-reader-content-20 .fqa-footnote { font-size: var(--fqa-body-size, 2rem); }\n.muye-reader-content-24 .fqa-footnote { font-size: var(--fqa-body-size, 2.4rem); }\n.muye-reader-content-28 .fqa-footnote { font-size: var(--fqa-body-size, 2.8rem); }\n.muye-reader-content-32 .fqa-footnote { font-size: var(--fqa-body-size, 3.2rem); }\n\n.fqa-footnote-title {\n	margin-bottom: 0.6em;\n	font-size: 0.85em;\n	font-weight: 600;\n	color: var(--web-gray_40, #8a8a8a);\n	text-indent: 0;\n}\n\n.fqa-footnote-list {\n	margin: 0;\n	padding-left: 1.6em;\n	font-size: 0.85em;\n	line-height: 1.7;\n	color: var(--web-gray_40, #8a8a8a);\n}\n\n.fqa-footnote-list li {\n	margin-bottom: 0.5em;\n	text-indent: 0;\n	transition: background-color 0.3s ease;\n}\n\n.fqa-footnote-list li.fqa-footnote-active {\n	background: var(--web-brand_light, rgba(241, 70, 70, 0.12));\n	border-radius: 4px;\n}\n\n.muye-reader-content > body {\n	background-color: var(--web-bg)!important;\n}\n\n.fqa-icon-dark {\n	color: #B3B3B3\n}\n\n/* ----------------------------- 右键菜单 / Toast ----------------------------- */\n\n/*\n * 书架与搜索共用。两者都把菜单 Teleport 到 body，\n * 拿不到各自根节点上的变量，所以在这里声明一份全局色板。\n */\n.fqa-menu {\n	--fqa-menu-bg: #fff;\n	--fqa-menu-text: #1f2329;\n	--fqa-menu-sub: #8f959e;\n	--fqa-menu-hover: rgba(31, 35, 41, 0.06);\n	--fqa-menu-danger: #f5222d;\n\n	position: fixed;\n	z-index: 2147483001;\n	min-width: 132px;\n	max-width: 240px;\n	padding: 4px;\n	box-sizing: border-box;\n	background: var(--fqa-menu-bg);\n	border: 1px solid rgba(31, 35, 41, 0.08);\n	border-radius: 8px;\n	box-shadow: 0 6px 24px rgba(31, 35, 41, 0.16);\n	font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial,\n		sans-serif;\n	font-size: 13px;\n	color: var(--fqa-menu-text);\n	user-select: none;\n}\n\n/* 二级面板：分组数量多时可滚动 */\n.fqa-menu-sub {\n	max-height: 320px;\n	overflow-y: auto;\n}\n\n.fqa-menu-row {\n	display: flex;\n	align-items: center;\n	justify-content: space-between;\n	gap: 12px;\n	padding: 7px 10px;\n	border-radius: 5px;\n	line-height: 1.4;\n	cursor: pointer;\n	white-space: nowrap;\n	overflow: hidden;\n}\n\n.fqa-menu-row > span:first-child {\n	overflow: hidden;\n	text-overflow: ellipsis;\n}\n\n.fqa-menu-row:hover,\n.fqa-menu-row.fqa-menu-open {\n	background: var(--fqa-menu-hover);\n}\n\n.fqa-menu-arrow {\n	color: var(--fqa-menu-sub);\n	font-size: 15px;\n	line-height: 1;\n}\n\n.fqa-menu-danger {\n	color: var(--fqa-menu-danger);\n}\n\n.fqa-menu-disabled {\n	color: var(--fqa-menu-sub);\n	cursor: not-allowed;\n}\n\n.fqa-menu-disabled:hover {\n	background: transparent;\n}\n\n/* 操作结果提示 */\n.fqa-toast {\n	position: fixed;\n	left: 50%;\n	bottom: 48px;\n	transform: translateX(-50%);\n	z-index: 2147483002;\n	max-width: 80vw;\n	padding: 10px 18px;\n	box-sizing: border-box;\n	background: rgba(31, 35, 41, 0.88);\n	color: #fff;\n	border-radius: 8px;\n	font-size: 13px;\n	line-height: 1.4;\n	box-shadow: 0 6px 24px rgba(31, 35, 41, 0.24);\n	pointer-events: none;\n}\n\n/* 骨架屏微光。书架与搜索共用同一个动画名 */\n@keyframes fqa-shimmer {\n	100% {\n		transform: translateX(100%);\n	}\n}\n\n@media (prefers-color-scheme: dark) {\n	.fqa-menu {\n		--fqa-menu-bg: #23272e;\n		--fqa-menu-text: #e5e6eb;\n		--fqa-menu-sub: #8f959e;\n		--fqa-menu-hover: rgba(255, 255, 255, 0.08);\n		border-color: rgba(255, 255, 255, 0.1);\n	}\n}\n\n.info {\n	width: 100%!important;\n}";
+  const scriptcss = "/* 移除章节锁定图标 */\n.muyeicon-lock {\n	display: none;\n}\n/* 移除APP推广图标 */\n.muye-to-fanqie {\n	display: none!important;\n}\n.reader-toolbar-item-download {\n	display: none!important;\n}\n.download-btn {\n	display: none!important;\n}\n.download-icon {\n	display: none!important;\n}\n\n.fqa-hide {\n	display: none!important;\n}\n/* 404 */\n.no-content {\n	display: none!important;\n}\n\n.fqa-comic-img {\n	width: 100%!important;\n	height: 100%!important;\n	max-width: 100%!important;\n	max-height: 100%!important;\n	padding-top: 0!important;\n	padding-bottom: 0!important;\n	margin-top: 0!important;\n	margin-bottom: 0!important;\n}\n\n.fqa-comic-reader {\n	line-height: 0!important;\n}\n\n.fqa-menu-item,\n.arco-menu-item {\n	width: 100%!important;\n}\n\n#dynamic-el {\n	display: none!important;\n}\n\n.fqa-footnote-ref {\n	display: inline-block;\n	margin: 0 0.15em;\n	padding: 0 0.25em;\n	font-size: 0.7em;\n	line-height: 1.4;\n	vertical-align: super;\n	color: var(--web-brand_normal, #f14646);\n	cursor: pointer;\n	user-select: none;\n	border-radius: 3px;\n	text-indent: 0;\n}\n\n.fqa-footnote-ref:hover,\n.fqa-footnote-ref:focus-visible {\n	background: var(--web-brand_light, rgba(241, 70, 70, 0.12));\n	outline: none;\n}\n\n\n.fqa-footnote {\n	margin-top: 2em;\n	padding-top: 1em;\n	border-top: 1px solid var(--web-gray_20, rgba(128, 128, 128, 0.25));\n	font-size: var(--fqa-body-size, 1.6rem);\n}\n\n.muye-reader-content-16 .fqa-footnote { font-size: var(--fqa-body-size, 1.6rem); }\n.muye-reader-content-20 .fqa-footnote { font-size: var(--fqa-body-size, 2rem); }\n.muye-reader-content-24 .fqa-footnote { font-size: var(--fqa-body-size, 2.4rem); }\n.muye-reader-content-28 .fqa-footnote { font-size: var(--fqa-body-size, 2.8rem); }\n.muye-reader-content-32 .fqa-footnote { font-size: var(--fqa-body-size, 3.2rem); }\n\n.fqa-footnote-title {\n	margin-bottom: 0.6em;\n	font-size: 0.85em;\n	font-weight: 600;\n	color: var(--web-gray_40, #8a8a8a);\n	text-indent: 0;\n}\n\n.fqa-footnote-list {\n	margin: 0;\n	padding-left: 1.6em;\n	font-size: 0.85em;\n	line-height: 1.7;\n	color: var(--web-gray_40, #8a8a8a);\n}\n\n.fqa-footnote-list li {\n	margin-bottom: 0.5em;\n	text-indent: 0;\n	transition: background-color 0.3s ease;\n}\n\n.fqa-footnote-list li.fqa-footnote-active {\n	background: var(--web-brand_light, rgba(241, 70, 70, 0.12));\n	border-radius: 4px;\n}\n\n.muye-reader-content > body {\n	background-color: var(--web-bg)!important;\n}\n\n.fqa-icon-dark {\n	color: #B3B3B3\n}\n\n/* ----------------------------- 右键菜单 / Toast ----------------------------- */\n\n/*\n * 书架与搜索共用。两者都把菜单 Teleport 到 body，\n * 拿不到各自根节点上的变量，所以在这里声明一份全局色板。\n */\n.fqa-menu {\n	--fqa-menu-bg: #fff;\n	--fqa-menu-text: #1f2329;\n	--fqa-menu-sub: #8f959e;\n	--fqa-menu-hover: rgba(31, 35, 41, 0.06);\n	--fqa-menu-danger: #f5222d;\n\n	position: fixed;\n	z-index: 2147483001;\n	min-width: 132px;\n	max-width: 240px;\n	padding: 4px;\n	box-sizing: border-box;\n	background: var(--fqa-menu-bg);\n	border: 1px solid rgba(31, 35, 41, 0.08);\n	border-radius: 8px;\n	box-shadow: 0 6px 24px rgba(31, 35, 41, 0.16);\n	font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', 'Helvetica Neue', Arial,\n		sans-serif;\n	font-size: 13px;\n	color: var(--fqa-menu-text);\n	user-select: none;\n}\n\n/* 二级面板：分组数量多时可滚动 */\n.fqa-menu-sub {\n	max-height: 320px;\n	overflow-y: auto;\n}\n\n.fqa-menu-row {\n	display: flex;\n	align-items: center;\n	justify-content: space-between;\n	gap: 12px;\n	padding: 7px 10px;\n	border-radius: 5px;\n	line-height: 1.4;\n	cursor: pointer;\n	white-space: nowrap;\n	overflow: hidden;\n}\n\n.fqa-menu-row > span:first-child {\n	overflow: hidden;\n	text-overflow: ellipsis;\n}\n\n.fqa-menu-row:hover,\n.fqa-menu-row.fqa-menu-open {\n	background: var(--fqa-menu-hover);\n}\n\n.fqa-menu-arrow {\n	color: var(--fqa-menu-sub);\n	font-size: 15px;\n	line-height: 1;\n}\n\n.fqa-menu-danger {\n	color: var(--fqa-menu-danger);\n}\n\n.fqa-menu-disabled {\n	color: var(--fqa-menu-sub);\n	cursor: not-allowed;\n}\n\n.fqa-menu-disabled:hover {\n	background: transparent;\n}\n\n/* 操作结果提示 */\n.fqa-toast {\n	position: fixed;\n	left: 50%;\n	bottom: 48px;\n	transform: translateX(-50%);\n	z-index: 2147483002;\n	max-width: 80vw;\n	padding: 10px 18px;\n	box-sizing: border-box;\n	background: rgba(31, 35, 41, 0.88);\n	color: #fff;\n	border-radius: 8px;\n	font-size: 13px;\n	line-height: 1.4;\n	box-shadow: 0 6px 24px rgba(31, 35, 41, 0.24);\n	pointer-events: none;\n}\n\n/* 骨架屏微光。书架与搜索共用同一个动画名 */\n@keyframes fqa-shimmer {\n	100% {\n		transform: translateX(100%);\n	}\n}\n\n@media (prefers-color-scheme: dark) {\n	.fqa-menu {\n		--fqa-menu-bg: #23272e;\n		--fqa-menu-text: #e5e6eb;\n		--fqa-menu-sub: #8f959e;\n		--fqa-menu-hover: rgba(255, 255, 255, 0.08);\n		border-color: rgba(255, 255, 255, 0.1);\n	}\n}\n\n.info {\n	width: 100%!important;\n}\n\n.reader-toolbar {\n	user-select: none;\n}";
   async function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -132,6 +136,8 @@
     readerFont: "",
     customCssEnabled: false,
     customCss: "",
+    // 原站书架点封面是继续阅读，保持一致
+    bookshelfClickAction: "read",
     enhanceSearch: true,
     // 默认关：携带登录态属于额外的隐私暴露，交给用户显式开启
     searchPersonalized: false,
@@ -146,6 +152,8 @@
     downloadVolumePage: false,
     downloadImages: true,
     downloadBookCss: true,
+    audiobookChapterEnd: "next",
+    audiobookFollow: true,
     apiPreference: "app",
     deviceId: "",
     installId: "",
@@ -170,6 +178,12 @@
     }
     if (s.downloadCharset !== "utf-8" && s.downloadCharset !== "gbk") {
       s.downloadCharset = DEFAULT_SETTINGS.downloadCharset;
+    }
+    if (s.bookshelfClickAction !== "read" && s.bookshelfClickAction !== "detail") {
+      s.bookshelfClickAction = DEFAULT_SETTINGS.bookshelfClickAction;
+    }
+    if (s.audiobookChapterEnd !== "next" && s.audiobookChapterEnd !== "stop") {
+      s.audiobookChapterEnd = DEFAULT_SETTINGS.audiobookChapterEnd;
     }
     s.downloadBatchSize = clampInt(s.downloadBatchSize, 1, 30, DEFAULT_SETTINGS.downloadBatchSize);
     s.downloadInterval = clampInt(s.downloadInterval, 0, 1e4, DEFAULT_SETTINGS.downloadInterval);
@@ -377,7 +391,7 @@
       }
     );
   }
-  const STYLE_ID$5 = "fqa-user-style";
+  const STYLE_ID$6 = "fqa-user-style";
   const READER_SCOPE = "#fqa-reader-content, .muye-reader-content";
   function buildCss() {
     const parts = [];
@@ -393,14 +407,14 @@
   }
   function apply() {
     const css = buildCss();
-    let el = document.getElementById(STYLE_ID$5);
+    let el = document.getElementById(STYLE_ID$6);
     if (!css) {
       el == null ? void 0 : el.remove();
       return;
     }
     if (!el) {
       el = document.createElement("style");
-      el.id = STYLE_ID$5;
+      el.id = STYLE_ID$6;
       document.head.appendChild(el);
     }
     el.textContent = css;
@@ -411,6 +425,18 @@
       () => [settings$1.readerFont, settings$1.customCssEnabled, settings$1.customCss],
       apply
     );
+  }
+  class EmptyResponseError extends Error {
+    constructor(status) {
+      super(`服务端返回了空响应体(HTTP ${status})`);
+      __publicField(this, "status");
+      this.name = "EmptyResponseError";
+      this.status = status;
+    }
+  }
+  function isEmptyResponse(res) {
+    const text = res.responseText;
+    return typeof text !== "string" || text === "";
   }
   const supportedMethods = /* @__PURE__ */ new Set([
     "GET",
@@ -426,7 +452,7 @@
         reject(signal.reason ?? new DOMException("The operation was aborted", "AbortError"));
         return;
       }
-      const headers = normalizeHeaders(options.headers);
+      const headers = normalizeHeaders$1(options.headers);
       const data = normalizeBody(options.body);
       const method = options.method ?? (data ? "POST" : "GET");
       if (!supportedMethods.has(method)) {
@@ -449,6 +475,9 @@
           cleanup();
           resolve(Object.assign(response, {
             json() {
+              if (isEmptyResponse(this)) {
+                throw new EmptyResponseError(this.status);
+              }
               return JSON.parse(this.responseText);
             }
           }));
@@ -505,7 +534,7 @@
       });
     });
   }
-  function normalizeHeaders(headers) {
+  function normalizeHeaders$1(headers) {
     if (!headers) {
       return void 0;
     }
@@ -697,7 +726,7 @@
       message[paddedLength - 1 - i2] = Number(bitLength >> BigInt(i2 * 8) & 0xffn);
     }
     const dataView = new DataView(message.buffer);
-    const state = new Uint32Array([
+    const state2 = new Uint32Array([
       1937774191,
       1226093241,
       388252375,
@@ -720,14 +749,14 @@
       for (let i2 = 0; i2 < 64; i2++) {
         expandedWords[i2] = words[i2] ^ words[i2 + 4];
       }
-      let a = state[0];
-      let b = state[1];
-      let c = state[2];
-      let d = state[3];
-      let e = state[4];
-      let f2 = state[5];
-      let g2 = state[6];
-      let h2 = state[7];
+      let a = state2[0];
+      let b = state2[1];
+      let c = state2[2];
+      let d = state2[3];
+      let e = state2[4];
+      let f2 = state2[5];
+      let g2 = state2[6];
+      let h2 = state2[7];
       for (let i2 = 0; i2 < 64; i2++) {
         const t = i2 <= 15 ? 2043430169 : 2055708042;
         const ss1 = rotl(rotl(a, 12) + e + rotl(t, i2), 7);
@@ -743,18 +772,18 @@
         f2 = e;
         e = p0(tt2);
       }
-      state[0] = state[0] ^ a;
-      state[1] = state[1] ^ b;
-      state[2] = state[2] ^ c;
-      state[3] = state[3] ^ d;
-      state[4] = state[4] ^ e;
-      state[5] = state[5] ^ f2;
-      state[6] = state[6] ^ g2;
-      state[7] = state[7] ^ h2;
+      state2[0] = state2[0] ^ a;
+      state2[1] = state2[1] ^ b;
+      state2[2] = state2[2] ^ c;
+      state2[3] = state2[3] ^ d;
+      state2[4] = state2[4] ^ e;
+      state2[5] = state2[5] ^ f2;
+      state2[6] = state2[6] ^ g2;
+      state2[7] = state2[7] ^ h2;
     }
     const result = new Uint8Array(32);
-    for (let i2 = 0; i2 < state.length; i2++) {
-      const word = state[i2];
+    for (let i2 = 0; i2 < state2.length; i2++) {
+      const word = state2[i2];
       result[i2 * 4] = word >>> 24;
       result[i2 * 4 + 1] = word >>> 16;
       result[i2 * 4 + 2] = word >>> 8;
@@ -831,7 +860,7 @@
     }
     return result;
   }
-  function toBytes(input) {
+  function toBytes$1(input) {
     if (typeof input === "string") {
       return new TextEncoder().encode(input);
     }
@@ -843,30 +872,30 @@
   const hash = {
     sha256: async (input) => {
       const subtle = getSubtle();
-      const digest = await subtle.digest("SHA-256", toBytes(input));
+      const digest = await subtle.digest("SHA-256", toBytes$1(input));
       return hex(digest);
     },
     sha256bytes: async (input) => {
       const subtle = getSubtle();
-      return subtle.digest("SHA-256", toBytes(input));
+      return subtle.digest("SHA-256", toBytes$1(input));
     },
     sha512: async (input) => {
       const subtle = getSubtle();
-      const digest = await subtle.digest("SHA-512", toBytes(input));
+      const digest = await subtle.digest("SHA-512", toBytes$1(input));
       return hex(digest);
     },
     sha512bytes: async (input) => {
       const subtle = getSubtle();
-      return subtle.digest("SHA-512", toBytes(input));
+      return subtle.digest("SHA-512", toBytes$1(input));
     },
     md5: async (input) => md5(
-      typeof input === "string" ? input : toBytes(input).buffer
+      typeof input === "string" ? input : toBytes$1(input).buffer
     ),
     md5bytes: async (input) => unhex(md5(
-      typeof input === "string" ? input : toBytes(input).buffer
+      typeof input === "string" ? input : toBytes$1(input).buffer
     )),
-    sm3: async (input) => hex(sm3(toBytes(input)).buffer),
-    sm3bytes: async (input) => sm3(toBytes(input)).buffer
+    sm3: async (input) => hex(sm3(toBytes$1(input)).buffer),
+    sm3bytes: async (input) => sm3(toBytes$1(input)).buffer
   };
   const WIRE_VARINT = 0;
   const WIRE_BYTES = 2;
@@ -1149,94 +1178,6 @@
     }
     return headers;
   }
-  const appBaseUrl = "https://reading.snssdk.com/reading";
-  const redcandleBaseUrl = "https://api5-sinfonlinec.jxbhmy.com/reading";
-  const webBaseUrl = "https://fanqienovel.com/reading";
-  const appUserAgent = "com.dragon.read";
-  function buildAppQuery(extra) {
-    const c = _config.currentConfig;
-    return new URLSearchParams({
-      iid: c.install_id,
-      device_id: c.device_id,
-      ac: "wifi",
-      channel: "43536163a",
-      aid: "1967",
-      app_name: "novelapp",
-      version_code: "70132",
-      version_name: "7.0.1.32",
-      device_platform: "android",
-      os: "android",
-      ssmix: "a",
-      os_version: "10",
-      device_type: c.device_type || "P30",
-      device_brand: c.device_brand || "realme",
-      update_version_code: "70132",
-      manifest_version_code: "70132",
-      ...extra
-    });
-  }
-  async function webGet(path, query, credentials2 = "omit") {
-    const url = `${webBaseUrl}${path}?${buildAppQuery(query).toString()}`;
-    const signed = await signRequest(url);
-    const res = await fetch$1(url, { headers: signed, credentials: credentials2 });
-    if (!res.ok) {
-      throw new Error(`请求失败(${res.status})`);
-    }
-    return res.json();
-  }
-  function isUsable(res) {
-    if (!res || res.status !== 200) return false;
-    try {
-      const j = res.json();
-      return !j || j.code === void 0 || j.code === 0;
-    } catch {
-      return false;
-    }
-  }
-  async function requestApp(path, query, headers) {
-    const url = `${appBaseUrl}${path}?${buildAppQuery(query).toString()}`;
-    const signed = await signRequest(url);
-    return apiFetch(url, {
-      method: "GET",
-      headers: { ...signed, "User-Agent": appUserAgent, ...headers }
-    });
-  }
-  async function requestRedcandle(path, query, headers) {
-    const url = `${redcandleBaseUrl}${path}?${buildAppQuery(query).toString()}`;
-    return apiFetch(url, {
-      method: "GET",
-      headers: { "User-Agent": appUserAgent, ...headers }
-    });
-  }
-  async function appGet(path, query, headers) {
-    if (settings$1.apiPreference === "redcandle") {
-      try {
-        const res = await requestRedcandle(path, query, headers);
-        if (isUsable(res)) return res;
-        console.warn(`[fqa:api] 红烛接口数据不全，回落到番茄 APP: ${path}`);
-      } catch (e) {
-        console.warn(`[fqa:api] 红烛接口请求失败，回落到番茄 APP: ${path}`, e);
-      }
-    }
-    return requestApp(path, query, headers);
-  }
-  async function appPost(path, body, query, headers) {
-    const url = `${appBaseUrl}${path}?${buildAppQuery(query).toString()}`;
-    const signed = await signRequest(url, body);
-    console.log("---start--- APP POST ", url);
-    const res = await apiFetch(url, {
-      method: "POST",
-      headers: {
-        ...signed,
-        "User-Agent": appUserAgent,
-        "Content-Type": "application/json; charset=utf-8",
-        ...headers
-      },
-      body
-    });
-    console.log("---complete--- APP POST ", url, res);
-    return res;
-  }
   async function gzip(data) {
     if (typeof data === "string") {
       data = new TextEncoder().encode(data).buffer;
@@ -1252,1014 +1193,6 @@
     const decompressed = new Response(stream).arrayBuffer();
     return decompressed;
   }
-  async function decryptChapter(encrypted, rawData, config = defaultConfig) {
-    var _a;
-    if (!encrypted) {
-      throw new Error("Invalid encrypted chapter");
-    }
-    const buf = b64decode(encrypted);
-    const iv = buf.slice(0, 16);
-    const data = buf.slice(16);
-    const key = (_a = config.key_info) == null ? void 0 : _a.key;
-    if (!key) {
-      throw new Error("Missing decrypt key");
-    }
-    const subtle = getSubtle();
-    const cryptoKey = await subtle.importKey(
-      "raw",
-      key,
-      { name: "AES-CBC" },
-      false,
-      ["decrypt"]
-    );
-    return subtle.decrypt(
-      { name: "AES-CBC", iv },
-      cryptoKey,
-      data
-    ).then(async (decrypted) => {
-      if (rawData && (rawData == null ? void 0 : rawData.compress_status) === 1) {
-        decrypted = await gunzip(decrypted);
-      }
-      const decoder = new TextDecoder();
-      const plain = decoder.decode(decrypted);
-      if (plain.trim().startsWith("<")) {
-        return plain;
-      }
-      try {
-        return JSON.parse(plain);
-      } catch (e) {
-        console.warn("Invalid chapter content: ", plain, e);
-        return void 0;
-      }
-    });
-  }
-  async function decryptComicImage(image, key) {
-    const subtle = getSubtle();
-    const cryptoKey = await subtle.importKey(
-      "raw",
-      unhex(key),
-      { name: "AES-GCM" },
-      false,
-      ["decrypt"]
-    );
-    const iv = image.slice(0, 12);
-    const data = image.slice(12);
-    return await subtle.decrypt(
-      { name: "AES-GCM", iv },
-      cryptoKey,
-      data
-    );
-  }
-  function reverseHex(value) {
-    const be = BigInt(value).toString(16).padStart(32, "0");
-    let result = "";
-    for (let i2 = be.length; i2 > 0; i2 -= 2) result += be.slice(i2 - 2, i2);
-    return result;
-  }
-  async function encryptKeyinfoBody(config) {
-    const deviceId = config.device_id;
-    const iv = new TextEncoder().encode(randomString(16));
-    const data = new Uint8Array(unhex(reverseHex(deviceId))).slice(0, 8);
-    console.log(data);
-    const subtle = getSubtle();
-    const k = await subtle.importKey(
-      "raw",
-      shared_key,
-      { name: "AES-CBC" },
-      false,
-      ["encrypt"]
-    );
-    const encrypted = await subtle.encrypt(
-      { name: "AES-CBC", iv },
-      k,
-      data
-    );
-    const final = new Uint8Array(iv.length + encrypted.byteLength);
-    console.log(final);
-    final.set(iv, 0);
-    final.set(new Uint8Array(encrypted), iv.length);
-    return JSON.stringify({
-      content: b64encode(final.buffer)
-    });
-  }
-  async function decryptKeyinfoResponse(encrypted) {
-    const buf = b64decode(encrypted);
-    const iv = buf.slice(0, 16);
-    const data = buf.slice(16);
-    const subtle = getSubtle();
-    const k = await subtle.importKey(
-      "raw",
-      shared_key,
-      { name: "AES-CBC" },
-      false,
-      ["decrypt"]
-    );
-    return subtle.decrypt(
-      { name: "AES-CBC", iv },
-      k,
-      data
-    );
-  }
-  async function refreshKeyinfo() {
-    var _a, _b, _c;
-    const b = await encryptKeyinfoBody(_config.currentConfig);
-    const res = await appPost("/crypt/registerkey", b);
-    const j = res.json();
-    const ek = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.key;
-    if (!ek) {
-      throw new Error(`Failed to get key info: ${res.responseText}`);
-    }
-    const key = await decryptKeyinfoResponse(ek);
-    const keyinfo = {
-      key,
-      keyver: (_b = j == null ? void 0 : j.data) == null ? void 0 : _b.keyver
-    };
-    console.log("Refreshed key info:", keyinfo);
-    _config.currentConfig.key_info = keyinfo;
-    write("keyinfo", {
-      key: b64encode(key),
-      keyver: (_c = j == null ? void 0 : j.data) == null ? void 0 : _c.keyver
-    });
-  }
-  let refreshInflight = null;
-  function refreshKey() {
-    if (!refreshInflight) {
-      refreshInflight = refreshKeyinfo().finally(() => {
-        refreshInflight = null;
-      });
-    }
-    return refreshInflight;
-  }
-  async function ensureKeyinfo(expectedKeyVersion) {
-    const keyinfo = _config.currentConfig.key_info;
-    const cachedKeyInfo = read("keyinfo");
-    console.log("cached key info: ", cachedKeyInfo);
-    if (cachedKeyInfo) {
-      const cki = {
-        key: b64decode(cachedKeyInfo.key),
-        keyver: cachedKeyInfo.keyver
-      };
-      if (typeof expectedKeyVersion === "undefined" || cki.keyver === expectedKeyVersion) {
-        _config.currentConfig.key_info = cki;
-        return;
-      }
-    }
-    if (!keyinfo) {
-      return await refreshKey();
-    }
-    if ((keyinfo == null ? void 0 : keyinfo.keyver) !== expectedKeyVersion) {
-      return await refreshKey();
-    }
-  }
-  async function getChapter(itemId, _retry) {
-    var _a, _b;
-    if (typeof _retry === "undefined") _retry = 0;
-    if (_retry > 5) {
-      throw new Error(`Failed to get chapter: ${itemId}`);
-    }
-    if (!_config.currentConfig.key_info) {
-      await ensureKeyinfo();
-    }
-    const res = await appGet("/reader/full/v", { item_id: itemId, req_type: "1" });
-    const j = (_a = res.json()) == null ? void 0 : _a.data;
-    if (!j) {
-      console.warn("Failed to get chapter: ", itemId, ", response: ", res.responseText);
-      return await getChapter(itemId, _retry + 1);
-    }
-    if ((j == null ? void 0 : j.content) === "Invalid" || (j == null ? void 0 : j.key_version) !== ((_b = _config.currentConfig.key_info) == null ? void 0 : _b.keyver)) {
-      console.warn("Key reg expired, regster again and retrying...");
-      if ((j == null ? void 0 : j.content) === "Invalid") {
-        await refreshKey();
-      } else {
-        await ensureKeyinfo(parseInt(j == null ? void 0 : j.key_version));
-      }
-      return await getChapter(itemId, _retry + 1);
-    }
-    j.content = await decryptChapter(j == null ? void 0 : j.content, j, _config.currentConfig);
-    return j;
-  }
-  async function getChapters(itemIds, bookId = "0", _retry = 0) {
-    var _a, _b;
-    if (itemIds.length === 0) return {};
-    if (!_config.currentConfig.key_info) {
-      await ensureKeyinfo();
-    }
-    const res = await appGet("/reader/batch_full/v", {
-      item_ids: itemIds.join(","),
-      book_id: bookId,
-      novel_text_type: "1",
-      req_type: "1"
-    });
-    const raw = (_a = res.json()) == null ? void 0 : _a.data;
-    const entries = raw && typeof raw === "object" ? Array.isArray(raw) ? raw.map((it) => {
-      var _a2;
-      return [String((it == null ? void 0 : it.item_id) ?? ((_a2 = it == null ? void 0 : it.novel_data) == null ? void 0 : _a2.item_id) ?? ""), it];
-    }) : Object.entries(raw) : [];
-    if (entries.length === 0) {
-      throw new Error(`Failed to batch get chapters: ${res.responseText}`);
-    }
-    const localKeyver = (_b = _config.currentConfig.key_info) == null ? void 0 : _b.keyver;
-    const expired = entries.filter(
-      ([, item]) => (item == null ? void 0 : item.code) === 0 || (item == null ? void 0 : item.code) === void 0 ? (item == null ? void 0 : item.content) === "Invalid" || (item == null ? void 0 : item.key_version) !== void 0 && Number(item.key_version) !== localKeyver : false
-    );
-    if (expired.length > 0 && _retry < 2) {
-      const [, sample] = expired[0];
-      console.warn(
-        `[fqa:api] 批量正文密钥失效（${expired.length}/${entries.length} 章），重新注册后重试。本地 keyver=${localKeyver}，服务端=${sample == null ? void 0 : sample.key_version}`
-      );
-      await refreshKey();
-      await sleep(800);
-      return await getChapters(itemIds, bookId, _retry + 1);
-    }
-    const results = {};
-    for (const [id, item] of entries) {
-      if (!id) continue;
-      if ((item == null ? void 0 : item.code) !== void 0 && item.code !== 0) {
-        results[id] = { ...item, item_id: id, error: `code ${item.code}` };
-        continue;
-      }
-      if (!(item == null ? void 0 : item.content) || item.content === "Invalid") {
-        results[id] = { ...item, item_id: id, error: "Invalid content" };
-        continue;
-      }
-      try {
-        results[id] = {
-          ...item,
-          item_id: id,
-          novel_data: item.novel_data,
-          content: await decryptChapter(item.content, item, _config.currentConfig)
-        };
-      } catch (e) {
-        results[id] = { ...item, item_id: id, error: String(e) };
-      }
-    }
-    return results;
-  }
-  async function getCatalogRaw(bookId) {
-    var _a;
-    const response = await appGet("/bookapi/directory/all_items/v", { book_id: bookId });
-    const j = response.json();
-    const items = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.item_data_list;
-    if ((j == null ? void 0 : j.code) !== 0 || !Array.isArray(items) || items.length === 0) {
-      throw new Error("Empty catalog");
-    }
-    return [items, items.map((it) => String(it.item_id))];
-  }
-  async function webCatalog(bookId) {
-    const url = `https://fanqienovel.com/api/reader/directory/detail?bookId=${bookId}`;
-    const response = await apiFetch(url);
-    const rj = response.json();
-    const d = rj.data;
-    const allItems = d.allItemIds;
-    const volmap = {};
-    const vname = d.volumeNameList;
-    for (let i2 = 0; i2 < vname.length; i2++) {
-      const volumeName = vname[i2];
-      if (volumeName !== void 0) {
-        volmap[volumeName] = d.chapterListWithVolume[i2];
-      }
-    }
-    return [volmap, allItems];
-  }
-  async function getCatalog(bookId) {
-    const r = await getCatalogRaw(bookId);
-    let catalogRaw = r[0];
-    let allItemIds = r[1];
-    if (!catalogRaw || !allItemIds) {
-      const rw = await webCatalog(bookId);
-      catalogRaw = rw[0];
-      allItemIds = rw[1];
-    }
-    const vmap = {};
-    const chapters = [];
-    catalogRaw.forEach((item) => {
-      const volumeName = item.volume_name ?? "";
-      const chapterItem = {
-        item_id: String(item.item_id || item.itemId),
-        title: item.title,
-        // YYYY-MM-DD HH:mm:ss
-        update_time: moment((item.first_pass_time || item.firstPassTime) * 1e3).format("YYYY-MM-DD HH:mm:ss"),
-        char_count: item.chapter_word_number || 0,
-        volume_title: volumeName
-      };
-      chapters.push(chapterItem);
-      if (!vmap[volumeName]) {
-        vmap[volumeName] = {
-          title: volumeName,
-          book_id: bookId,
-          chapter_list: []
-        };
-      }
-      vmap[volumeName].chapter_list.push(chapterItem);
-    });
-    return {
-      book_id: bookId,
-      volume_list: Object.values(vmap),
-      chapter_list: chapters,
-      all_item_ids: allItemIds
-    };
-  }
-  function mappingCreationStatus(status) {
-    switch (status) {
-      case "0":
-        return "完结";
-      case "1":
-        return "连载";
-      case "4":
-        return "断更";
-      default:
-        return "未知";
-    }
-  }
-  async function getBookInfoRaw(bookId) {
-    const response = await appGet("/bookapi/detail/v", { book_id: bookId });
-    const j = response.json();
-    console.log("Book Info:", j);
-    return j.data;
-  }
-  async function getBookInfo(bookId) {
-    const bookInfo = await getBookInfoRaw(bookId);
-    if (!bookInfo) {
-      throw new Error("Book not found");
-    }
-    return {
-      book_id: bookInfo.book_id,
-      title: bookInfo.book_name || bookInfo.original_book_name,
-      author: bookInfo.author,
-      cover_url: bookInfo.thumb_url,
-      summary: bookInfo.abstract,
-      // volume_list: bookInfo.volume_list,
-      update_time: moment(bookInfo.last_chapter_first_pass_time * 1e3).format("YYYY-MM-DD HH:mm:ss"),
-      status: mappingCreationStatus(bookInfo.creation_status)
-      // chapter_count: bookInfo.chapter_count,
-    };
-  }
-  async function getBookInfoAndCatalog(book) {
-    if (typeof book !== "string") {
-      book = book.book_id;
-    }
-    const bookInfo = await getBookInfo(book);
-    if (!bookInfo) {
-      throw new Error("Book not found");
-    }
-    const catalog = await getCatalog(bookInfo.book_id);
-    console.log("Catalog:", catalog);
-    bookInfo.volume_list = catalog.volume_list;
-    bookInfo.chapter_list = catalog.chapter_list;
-    return bookInfo;
-  }
-  const CDN_PREFIX = "https://p3-novel.byteimg.com/origin/";
-  const cssCache = /* @__PURE__ */ new Map();
-  function stripComments(css) {
-    return css.replace(/\/\*[\s\S]*?\*\//g, "");
-  }
-  function scopeSelector(selector, scope) {
-    const s = selector.trim();
-    if (!s) return "";
-    const where = `:where(${scope})`;
-    if (/^(body|html|:root)$/i.test(s)) return where;
-    const m = s.match(/^(body|html)\b([\s\S]*)$/i);
-    if (m) return `${where}${m[2]}`;
-    return `${where} ${s}`;
-  }
-  function stripRootDecls(body) {
-    return body.split(";").filter((decl) => !/^\s*(color|background|background-color|font-size)\s*:/i.test(decl)).join(";");
-  }
-  function scopeCss(css, scope) {
-    const src = stripComments(css);
-    let out = "";
-    let buf = "";
-    let i2 = 0;
-    while (i2 < src.length) {
-      const ch = src[i2];
-      if (ch === "{") {
-        const prelude = buf.trim();
-        buf = "";
-        i2++;
-        if (prelude.startsWith("@")) {
-          if (/^@(media|supports|document)\b/i.test(prelude)) {
-            const inner2 = readBlock(src, i2);
-            out += `${prelude}{${scopeCss(inner2.text, scope)}}`;
-            i2 = inner2.end;
-          } else {
-            const inner2 = readBlock(src, i2);
-            out += `${prelude}{${inner2.text}}`;
-            i2 = inner2.end;
-          }
-          continue;
-        }
-        const inner = readBlock(src, i2);
-        const selectors = prelude.split(",").map((s) => scopeSelector(s, scope)).filter(Boolean);
-        const isRoot = selectors.length === 1 && selectors[0] === `:where(${scope})`;
-        const declarations = isRoot ? stripRootDecls(inner.text) : inner.text;
-        if (selectors.length && declarations.trim()) {
-          out += `${selectors.join(",")}{${declarations}}`;
-        }
-        i2 = inner.end;
-        continue;
-      }
-      if (ch === ";" && buf.trim().startsWith("@")) {
-        buf = "";
-        i2++;
-        continue;
-      }
-      buf += ch;
-      i2++;
-    }
-    return out;
-  }
-  function readBlock(src, start) {
-    let depth = 1;
-    let i2 = start;
-    while (i2 < src.length && depth > 0) {
-      const c = src[i2];
-      if (c === "{") depth++;
-      else if (c === "}") depth--;
-      if (depth === 0) break;
-      i2++;
-    }
-    return { text: src.slice(start, i2), end: Math.min(i2 + 1, src.length) };
-  }
-  function parseCssMap(cssMap) {
-    if (!cssMap || typeof cssMap !== "string") return {};
-    try {
-      const parsed = JSON.parse(cssMap);
-      return parsed && typeof parsed === "object" ? parsed : {};
-    } catch {
-      return {};
-    }
-  }
-  async function fetchCss(uri) {
-    const cached = cssCache.get(uri);
-    if (cached !== void 0) return cached;
-    try {
-      const res = await fetch(CDN_PREFIX + uri);
-      const text = res.ok ? await res.text() : "";
-      cssCache.set(uri, text);
-      return text;
-    } catch (e) {
-      console.warn("获取书籍样式表失败:", uri, e);
-      cssCache.set(uri, "");
-      return "";
-    }
-  }
-  async function getScopedBookCss(cssMap, scope) {
-    const map = parseCssMap(cssMap);
-    const uris = Object.values(map).filter(Boolean);
-    if (uris.length === 0) return "";
-    const sheets = await Promise.all(uris.map(fetchCss));
-    return sheets.filter(Boolean).map((css) => scopeCss(css, scope)).join("\n");
-  }
-  async function applyBookCss(cssMap, scope, styleId = "fqa-book-style") {
-    const css = await getScopedBookCss(cssMap, scope);
-    let el = document.getElementById(styleId);
-    if (!css) {
-      el == null ? void 0 : el.remove();
-      return false;
-    }
-    if (!el) {
-      el = document.createElement("style");
-      el.id = styleId;
-      document.head.appendChild(el);
-    }
-    el.textContent = css;
-    return true;
-  }
-  const FOOTNOTE_CLASS = "fqa-footnote";
-  const FOOTNOTE_REF_CLASS = "fqa-footnote-ref";
-  const FOOTNOTE_LIST_CLASS = "fqa-footnote-list";
-  function byAttr(root, tag, attr, value) {
-    return [...root.querySelectorAll(tag)].filter((el) => {
-      const v = el.getAttribute(attr);
-      if (v === null) return false;
-      return value === void 0 || v === value;
-    });
-  }
-  function processFootnotes(root) {
-    const notes = /* @__PURE__ */ new Map();
-    const sections = byAttr(root, "section", "epub:type", "footnotes");
-    for (const section of sections) {
-      for (const aside of section.querySelectorAll("aside")) {
-        const id = aside.getAttribute("id");
-        if (id) notes.set(id, aside.innerHTML.trim());
-      }
-    }
-    if (notes.size === 0) {
-      for (const aside of byAttr(root, "aside", "epub:type", "footnote")) {
-        const id = aside.getAttribute("id");
-        if (id) notes.set(id, aside.innerHTML.trim());
-      }
-    }
-    const collectRefs = (scope) => {
-      const set = new Set(byAttr(scope, "a", "epub:type", "noteref"));
-      for (const img of scope.querySelectorAll("img.bdFootnote")) {
-        const a = img.closest('a[href^="#"]');
-        if (a && scope.contains(a)) set.add(a);
-      }
-      return [...scope.querySelectorAll("a")].filter((a) => set.has(a));
-    };
-    const inSection = (el) => sections.some((s) => s.contains(el));
-    const refs = collectRefs(root).filter((a) => !inSection(a));
-    if (refs.length === 0 && notes.size === 0) return 0;
-    const ordered = [];
-    const numberOf = /* @__PURE__ */ new Map();
-    let counter = 0;
-    const makeSup = (num2, text) => {
-      const sup = document.createElement("sup");
-      sup.className = FOOTNOTE_REF_CLASS;
-      sup.textContent = String(num2);
-      sup.setAttribute("role", "button");
-      sup.setAttribute("tabindex", "0");
-      sup.title = stripTags(text);
-      return sup;
-    };
-    refs.forEach((ref2) => {
-      const href = ref2.getAttribute("href") ?? "";
-      const id = href.startsWith("#") ? href.slice(1) : "";
-      const text = notes.get(id);
-      if (text === void 0) return;
-      counter += 1;
-      numberOf.set(id, counter);
-      ordered.push({ num: counter, text });
-      ref2.replaceWith(makeSup(counter, text));
-    });
-    for (const [id, text] of notes) {
-      if (numberOf.has(id)) continue;
-      counter += 1;
-      numberOf.set(id, counter);
-      ordered.push({ num: counter, text });
-    }
-    for (const section of sections) section.remove();
-    if (ordered.length > 0) {
-      const list = document.createElement("ol");
-      list.className = FOOTNOTE_LIST_CLASS;
-      for (const { num: num2, text } of ordered) {
-        const li = document.createElement("li");
-        li.id = `fqa-fn-${num2}`;
-        li.innerHTML = text;
-        for (const inner of collectRefs(li)) {
-          const innerId = (inner.getAttribute("href") ?? "").replace(/^#/, "");
-          const innerNum = numberOf.get(innerId);
-          const innerText = notes.get(innerId);
-          if (innerNum && innerText !== void 0) {
-            inner.replaceWith(makeSup(innerNum, innerText));
-          } else {
-            inner.remove();
-          }
-        }
-        list.appendChild(li);
-      }
-      const wrapper = document.createElement("section");
-      wrapper.className = FOOTNOTE_CLASS;
-      const heading = document.createElement("div");
-      heading.className = "fqa-footnote-title";
-      heading.textContent = "注释";
-      wrapper.appendChild(heading);
-      wrapper.appendChild(list);
-      root.appendChild(wrapper);
-    }
-    for (const img of root.querySelectorAll("img.bdFootnote")) img.remove();
-    return ordered.length;
-  }
-  function stripTags(html) {
-    const el = document.createElement("div");
-    el.innerHTML = html;
-    return (el.textContent ?? "").replace(/\s+/g, " ").trim();
-  }
-  const KNOWN_TIERS = /muye-reader-content-(16|20|24|28|32)\b/;
-  function syncFootnoteFontSize(container2) {
-    const box = container2.closest('[class*="muye-reader-content-"]');
-    const apply2 = () => {
-      container2.style.removeProperty("--fqa-body-size");
-      if (!box || KNOWN_TIERS.test(box.className)) return;
-      const p = container2.querySelector("p");
-      if (!p) return;
-      const size = getComputedStyle(p).fontSize;
-      if (size) container2.style.setProperty("--fqa-body-size", size);
-    };
-    apply2();
-    if (!box) return;
-    const holder = container2;
-    if (holder.fqaFontObserver) return;
-    const observer2 = new MutationObserver(apply2);
-    observer2.observe(box, { attributes: true, attributeFilter: ["class"] });
-    holder.fqaFontObserver = observer2;
-  }
-  function bindFootnoteInteraction(container2) {
-    syncFootnoteFontSize(container2);
-    if (container2.dataset.fqaFootnoteBound === "1") return;
-    container2.dataset.fqaFootnoteBound = "1";
-    const activate = (sup) => {
-      var _a;
-      const num2 = (_a = sup.textContent) == null ? void 0 : _a.trim();
-      if (!num2) return;
-      const target = container2.querySelector(`#fqa-fn-${num2}`);
-      if (!target) return;
-      target.scrollIntoView({ behavior: "smooth", block: "center" });
-      target.classList.add("fqa-footnote-active");
-      setTimeout(() => target.classList.remove("fqa-footnote-active"), 1600);
-    };
-    container2.addEventListener("click", (e) => {
-      var _a, _b;
-      const sup = (_b = (_a = e.target) == null ? void 0 : _a.closest) == null ? void 0 : _b.call(_a, `.${FOOTNOTE_REF_CLASS}`);
-      if (sup) {
-        e.preventDefault();
-        activate(sup);
-      }
-    });
-    container2.addEventListener("keydown", (e) => {
-      var _a, _b;
-      const ke = e;
-      if (ke.key !== "Enter" && ke.key !== " ") return;
-      const sup = (_b = (_a = ke.target) == null ? void 0 : _a.closest) == null ? void 0 : _b.call(_a, `.${FOOTNOTE_REF_CLASS}`);
-      if (sup) {
-        ke.preventDefault();
-        activate(sup);
-      }
-    });
-  }
-  let currentBook = null;
-  let latestItemId = null;
-  const SCRIPT_CONTAINER_ID = "fqa-reader-content";
-  let comicObserver = null;
-  function ensureScriptContainer(readerContainer, comic) {
-    let scriptContainer = document.getElementById(SCRIPT_CONTAINER_ID);
-    if (!scriptContainer) {
-      scriptContainer = cloneElement(readerContainer);
-      scriptContainer.id = SCRIPT_CONTAINER_ID;
-      scriptContainer.classList.add("fqa");
-      readerContainer.insertAdjacentElement("beforebegin", scriptContainer);
-    }
-    scriptContainer.classList.toggle("fqa-comic-reader", comic);
-    if (settings$1.allowCopy) scriptContainer.classList.remove("noselect");
-    comicObserver == null ? void 0 : comicObserver.disconnect();
-    comicObserver = null;
-    scriptContainer.innerHTML = "";
-    readerContainer.classList.add("fqa-hide");
-    return scriptContainer;
-  }
-  async function insertContent() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-    const itemId = ((_a = window.location.pathname.split("/").pop()) == null ? void 0 : _a.substring(0, 19)) || "";
-    if (!itemId) {
-      console.warn("No item_id found in URL");
-      return;
-    }
-    latestItemId = itemId;
-    const chapter = await getChapter(itemId);
-    if (!chapter) {
-      console.warn("No chapter found for item_id:", itemId);
-      return;
-    }
-    if (latestItemId !== itemId) {
-      console.debug("Stale chapter response discarded:", itemId);
-      return;
-    }
-    console.log("Chapter:", chapter);
-    const pageState = unsafeWindow.__INITIAL_STATE__;
-    const chapterTitle = ((_b = chapter.novel_data) == null ? void 0 : _b.title) || ((_d = (_c = pageState == null ? void 0 : pageState.reader) == null ? void 0 : _c.chapterData) == null ? void 0 : _d.title);
-    if (typeof chapter.content === "string") {
-      void applyBookCss((_e = chapter.novel_data) == null ? void 0 : _e.css_map, "#fqa-reader-content");
-      const dp = new DOMParser();
-      const doc = dp.parseFromString(chapter.content, "text/html");
-      const body = doc.body;
-      body.querySelectorAll('link[rel="stylesheet"]').forEach((el) => el.remove());
-      let article = body.querySelector("article");
-      let toProcess = article || body;
-      processFootnotes(toProcess);
-      for (let i2 = 0; i2 < toProcess.childNodes.length; i2++) {
-        if (i2 < 2 && ((_g = (_f = toProcess.childNodes[i2]) == null ? void 0 : _f.innerHTML) == null ? void 0 : _g.includes(chapterTitle))) {
-          toProcess.removeChild(toProcess.childNodes[i2]);
-          break;
-        }
-      }
-      if (!article) {
-        article = document.createElement("article");
-        article.innerHTML = toProcess.innerHTML;
-        toProcess = article;
-      }
-      const readerContainer = document.querySelector("div.muye-reader-content:not(.fqa)");
-      if (readerContainer) {
-        const scriptContainer = ensureScriptContainer(readerContainer, false);
-        scriptContainer.appendChild(toProcess);
-        bindFootnoteInteraction(scriptContainer);
-      }
-    } else if (chapter.content.picInfos) {
-      if (chapter.content.encrypt) {
-        const imgs = [];
-        for (let i2 = 0; i2 < chapter.content.picInfos.length; i2++) {
-          const picInfo = chapter.content.picInfos[i2];
-          const img = document.createElement("img");
-          img.className = "fqa-comic-img fqa-comic-encrypted";
-          img.alt = `第${i2 + 1}页`;
-          img.dataset.encryptedUrl = picInfo.picUrl;
-          img.dataset.encryptKey = chapter.content.encrypt_key;
-          img.dataset.pageIndex = i2.toString();
-          img.style.minHeight = "500px";
-          img.style.backgroundColor = "#f0f0f0";
-          imgs.push(img);
-        }
-        const readerContainer = document.querySelector("div.muye-reader-content:not(.fqa)");
-        if (readerContainer) {
-          const scriptContainer = ensureScriptContainer(readerContainer, true);
-          imgs.forEach((img) => scriptContainer.appendChild(img));
-          const observer2 = new IntersectionObserver(
-            async (entries) => {
-              for (const entry of entries) {
-                if (entry.isIntersecting) {
-                  const img = entry.target;
-                  if (img.dataset.encryptedUrl && img.dataset.encryptKey && !img.src) {
-                    observer2.unobserve(img);
-                    try {
-                      const encryptedBuffer = await fetchArrayBuffer(
-                        img.dataset.encryptedUrl
-                      );
-                      const decryptedBuffer = await decryptComicImage(
-                        encryptedBuffer,
-                        img.dataset.encryptKey
-                      );
-                      const blob = new Blob([decryptedBuffer], { type: "image/jpeg" });
-                      const blobUrl = URL.createObjectURL(blob);
-                      img.src = blobUrl;
-                      img.style.minHeight = "";
-                      img.style.backgroundColor = "";
-                      img.onload = () => {
-                        URL.revokeObjectURL(blobUrl);
-                      };
-                    } catch (error) {
-                      console.error(`解密图片失败 (页 ${img.dataset.pageIndex}):`, error);
-                      img.alt = `第${Number(img.dataset.pageIndex) + 1}页 - 解密失败`;
-                      img.style.backgroundColor = "#ffebee";
-                    }
-                  }
-                }
-              }
-            },
-            {
-              rootMargin: "200px"
-            }
-          );
-          comicObserver = observer2;
-          imgs.forEach((img) => observer2.observe(img));
-        }
-      } else {
-        const imgs = [];
-        for (let i2 = 0; i2 < chapter.content.picInfos.length; i2++) {
-          const picInfo = chapter.content.picInfos[i2];
-          const img = document.createElement("img");
-          img.className = "fqa-comic-img";
-          img.alt = `第${i2 + 1}页`;
-          img.src = picInfo.picUrl;
-          imgs.push(img);
-        }
-        const readerContainer = document.querySelector("div.muye-reader-content:not(.fqa)");
-        if (readerContainer) {
-          const scriptContainer = ensureScriptContainer(readerContainer, true);
-          imgs.forEach((img) => scriptContainer.appendChild(img));
-        }
-      }
-    }
-    const muyeReaderTitle = document.querySelector("h1.muye-reader-title");
-    let muyeReaderSubtitle = document.querySelector("div.muye-reader-subtitle");
-    (_h = document.querySelector("#fqa-subtitle")) == null ? void 0 : _h.remove();
-    if (muyeReaderSubtitle) {
-      let _cloned = cloneElement(muyeReaderSubtitle);
-      muyeReaderSubtitle.classList.add("fqa-hide");
-      _cloned.id = "fqa-subtitle";
-      muyeReaderSubtitle.insertAdjacentElement("afterend", _cloned);
-      muyeReaderSubtitle = _cloned;
-      _cloned.classList.remove("fqa-hide");
-      console.log("clone subtitle: ", _cloned);
-    }
-    if (muyeReaderTitle) {
-      muyeReaderTitle.textContent = chapterTitle;
-    }
-    console.log("Current book:", currentBook);
-    if (!currentBook || currentBook == null || currentBook.book_id !== ((_i = chapter.novel_data) == null ? void 0 : _i.book_id)) {
-      currentBook = await getBookInfoAndCatalog((_j = chapter.novel_data) == null ? void 0 : _j.book_id);
-      console.log("Current book:", currentBook);
-    }
-    if (currentBook && currentBook.chapter_list) {
-      const currentChapterItem = currentBook.chapter_list.find((c) => c.item_id === itemId);
-      if (currentChapterItem) {
-        console.log("Current chapter:", currentChapterItem);
-        document.title = currentChapterItem.title + " - " + currentBook.title + " - 番茄小说";
-        if (document.getElementById("fqa-current-chapter-volume")) {
-          const c = document.getElementById("fqa-current-chapter-volume");
-          if (c) {
-            c.textContent = currentChapterItem.volume_title;
-          }
-        } else {
-          const volSpan = document.createElement("span");
-          volSpan.className = "desc-item";
-          volSpan.id = "fqa-current-chapter-volume";
-          volSpan.textContent = currentChapterItem.volume_title;
-          const c = muyeReaderSubtitle == null ? void 0 : muyeReaderSubtitle.firstChild;
-          if (c) {
-            c.insertAdjacentElement("beforebegin", volSpan);
-          }
-        }
-        let updateTimeSpans = (muyeReaderSubtitle == null ? void 0 : muyeReaderSubtitle.querySelectorAll("span.desc-item")) || [];
-        if (updateTimeSpans.length >= 2) {
-          let updateTimeSpan = updateTimeSpans[updateTimeSpans.length - 1];
-          let uttspan = updateTimeSpan.firstChild;
-          uttspan == null ? void 0 : uttspan.remove();
-          updateTimeSpan.innerHTML = "更新时间：" + currentChapterItem.update_time;
-        } else {
-          let updateTimeSpan = document.createElement("span");
-          updateTimeSpan.className = "desc-item";
-          updateTimeSpan.textContent = `更新时间：${currentChapterItem.update_time}`;
-        }
-      }
-    }
-  }
-  async function onUrlChange$1(_previous) {
-    await insertContent();
-  }
-  async function onHashChange$1(_previous) {
-  }
-  async function onLoad$1() {
-    document.querySelector("div.muye-reader-btns");
-    await insertContent();
-  }
-  function readerFilter(path, _query, _hash) {
-    return path.startsWith("/reader") || path.startsWith("reader");
-  }
-  const _exports$5 = [
-    {
-      id: "readerHook_load",
-      event: "load",
-      handler: onLoad$1,
-      filter: readerFilter
-    },
-    {
-      id: "readerHook_urlChange",
-      event: "onUrlChange",
-      handler: onUrlChange$1,
-      filter: readerFilter
-    },
-    {
-      id: "readerHook_hashChange",
-      event: "onHashChange",
-      handler: onHashChange$1,
-      filter: readerFilter
-    }
-  ];
-  const blackList = [
-    "mcs.zijieapi.com",
-    "vcs.zijieapi.com/vc/setting",
-    "mon.zijieapi.com",
-    "mssdk.bytedance.com/web/common",
-    "hm.baidu.com"
-  ];
-  const BLOCKED_BODY = JSON.stringify({
-    e: 0,
-    sc: 10,
-    tc: 10
-  });
-  function checkBlack(url) {
-    if (!settings$1.blockReport) return false;
-    return blackList.some((black) => url.includes(black));
-  }
-  const originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
-  unsafeWindow.fetch = function fetch2(input, init2) {
-    let url;
-    if (input instanceof Request) {
-      url = input.url;
-    } else if (input instanceof URL) {
-      url = input.href;
-    } else {
-      url = input;
-    }
-    if (checkBlack(url)) {
-      console.log("blocked request: " + url);
-      return Promise.resolve(new Response(BLOCKED_BODY, {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      }));
-    }
-    return originalFetch(input, init2);
-  };
-  const originalXMLHttpRequest = unsafeWindow.XMLHttpRequest;
-  unsafeWindow.XMLHttpRequest = class XMLHttpRequest extends originalXMLHttpRequest {
-    constructor() {
-      super(...arguments);
-      __publicField(this, "_blockedUrl");
-    }
-    open(method, url, async = true, user, password) {
-      if (checkBlack(url)) {
-        console.log("blocked request: " + url);
-        this._blockedUrl = url;
-        return;
-      }
-      this._blockedUrl = void 0;
-      super.open(method, url, async, user, password);
-    }
-    setRequestHeader(name2, value) {
-      if (this._blockedUrl !== void 0) return;
-      super.setRequestHeader(name2, value);
-    }
-    send(body) {
-      if (this._blockedUrl === void 0) {
-        super.send(body);
-        return;
-      }
-      const url = this._blockedUrl;
-      const shadow = (prop, value) => Object.defineProperty(this, prop, { configurable: true, get: () => value });
-      setTimeout(() => {
-        shadow("readyState", 4);
-        shadow("status", 200);
-        shadow("statusText", "OK");
-        shadow("responseURL", url);
-        shadow("responseText", this.responseType === "" || this.responseType === "text" ? BLOCKED_BODY : "");
-        shadow("response", this.responseType === "json" ? {
-          "e": 0,
-          "sc": 10,
-          "tc": 10
-        } : BLOCKED_BODY);
-        this.dispatchEvent(new Event("readystatechange"));
-        this.dispatchEvent(new ProgressEvent("load"));
-        this.dispatchEvent(new ProgressEvent("loadend"));
-      }, 0);
-    }
-    abort() {
-      if (this._blockedUrl !== void 0) return;
-      super.abort();
-    }
-    getAllResponseHeaders() {
-      if (this._blockedUrl !== void 0) return "content-type: application/json\r\n";
-      return super.getAllResponseHeaders();
-    }
-    getResponseHeader(name2) {
-      if (this._blockedUrl !== void 0) {
-        return name2.toLowerCase() === "content-type" ? "application/json" : null;
-      }
-      return super.getResponseHeader(name2);
-    }
-  };
-  const _exports$4 = [];
-  let userState = {
-    isLogin: false,
-    userInfo: null
-  };
-  if (read("userState")) {
-    userState = read("userState");
-  }
-  console.log("userState:", userState);
-  async function getDetailedUserInfo() {
-    if (!(userState == null ? void 0 : userState.isLogin) || !(userState == null ? void 0 : userState.userInfo)) {
-      return null;
-    }
-    if (userState.userInfo.gender !== void 0 && userState.userInfo.recommend_gender !== void 0 && userState.userInfo.fans_num !== void 0 && userState.userInfo.following_num !== void 0 && userState.userInfo.is_author !== void 0 && userState.userInfo.author_desc !== void 0 && userState.userInfo.read_book_num !== void 0 && userState.userInfo.read_book_time !== void 0) {
-      return userState.userInfo;
-    }
-    const response = await fetch$1("https://fanqienovel.com/reading/user/basic_info/get/v?aid=1967");
-    const j = await response.json();
-    if (j == null ? void 0 : j.data) {
-      const data = j.data;
-      userState.userInfo.gender = data.profile_gender;
-      userState.userInfo.recommend_gender = data.gender;
-      userState.userInfo.fans_num = data.fans_num;
-      userState.userInfo.following_num = data.follow_user_num;
-      userState.userInfo.is_author = data.is_author;
-      userState.userInfo.author_desc = data.author_desc;
-      userState.userInfo.read_book_num = data.read_book_num;
-      userState.userInfo.read_book_time = BigInt(data.read_book_time);
-      return userState.userInfo;
-    }
-    write("userState", userState);
-    return userState.userInfo;
-  }
-  async function checkLogin() {
-    var _a, _b, _c, _d, _e, _f;
-    const response = await fetch$1("https://fanqienovel.com/api/user/info/v2");
-    const j = await response.json();
-    const _userInfo = {
-      id: (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.id,
-      username: (_b = j == null ? void 0 : j.data) == null ? void 0 : _b.name,
-      avatar: (_c = j == null ? void 0 : j.data) == null ? void 0 : _c.avatar,
-      desc: (_d = j == null ? void 0 : j.data) == null ? void 0 : _d.desc,
-      age: (_e = j == null ? void 0 : j.data) == null ? void 0 : _e.age
-    };
-    if (((_f = j == null ? void 0 : j.data) == null ? void 0 : _f.id) > 1) {
-      userState.isLogin = true;
-      userState.userInfo = _userInfo;
-      write("userState", userState);
-      return true;
-    } else {
-      del("userState");
-      return false;
-    }
-  }
-  async function init() {
-    var _a;
-    await checkLogin();
-    if (userState.isLogin) {
-      console.log("Hello, ", (_a = userState == null ? void 0 : userState.userInfo) == null ? void 0 : _a.username);
-    }
-  }
-  const bookshelf = '<svg xmlns="http://www.w3.org/2000/svg"\r\n     width="24"\r\n     height="24"\r\n     viewBox="0 0 24 24"\r\n     fill="none"\r\n     stroke="currentColor"\r\n     stroke-width="1.2"\r\n     stroke-linecap="round"\r\n     stroke-linejoin="round">\r\n  <path d="M3.5 20h17"/>\r\n  <rect x="5" y="7" width="3.5" height="13" rx="0.8"/>\r\n  <rect x="8.5" y="5" width="4" height="15" rx="0.8"/>\r\n  <path d="M15.1 6.2 18 5.5l3.1 13.6-2.9.7z"/>\r\n  <path d="M9.8 8h1.4M6.1 10h1.3M17 8.8l1.3-.3"/>\r\n</svg>';
-  const settings = '<?xml version="1.0" encoding="utf-8"?>\r\n<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M12 8.25C9.92894 8.25 8.25 9.92893 8.25 12C8.25 14.0711 9.92894 15.75 12 15.75C14.0711 15.75 15.75 14.0711 15.75 12C15.75 9.92893 14.0711 8.25 12 8.25ZM9.75 12C9.75 10.7574 10.7574 9.75 12 9.75C13.2426 9.75 14.25 10.7574 14.25 12C14.25 13.2426 13.2426 14.25 12 14.25C10.7574 14.25 9.75 13.2426 9.75 12Z"\r\n        fill="#000000" />\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M11.9747 1.25C11.5303 1.24999 11.1592 1.24999 10.8546 1.27077C10.5375 1.29241 10.238 1.33905 9.94761 1.45933C9.27379 1.73844 8.73843 2.27379 8.45932 2.94762C8.31402 3.29842 8.27467 3.66812 8.25964 4.06996C8.24756 4.39299 8.08454 4.66251 7.84395 4.80141C7.60337 4.94031 7.28845 4.94673 7.00266 4.79568C6.64714 4.60777 6.30729 4.45699 5.93083 4.40743C5.20773 4.31223 4.47642 4.50819 3.89779 4.95219C3.64843 5.14353 3.45827 5.3796 3.28099 5.6434C3.11068 5.89681 2.92517 6.21815 2.70294 6.60307L2.67769 6.64681C2.45545 7.03172 2.26993 7.35304 2.13562 7.62723C1.99581 7.91267 1.88644 8.19539 1.84541 8.50701C1.75021 9.23012 1.94617 9.96142 2.39016 10.5401C2.62128 10.8412 2.92173 11.0602 3.26217 11.2741C3.53595 11.4461 3.68788 11.7221 3.68786 12C3.68785 12.2778 3.53592 12.5538 3.26217 12.7258C2.92169 12.9397 2.62121 13.1587 2.39007 13.4599C1.94607 14.0385 1.75012 14.7698 1.84531 15.4929C1.88634 15.8045 1.99571 16.0873 2.13552 16.3727C2.26983 16.6469 2.45535 16.9682 2.67758 17.3531L2.70284 17.3969C2.92507 17.7818 3.11058 18.1031 3.28089 18.3565C3.45817 18.6203 3.64833 18.8564 3.89769 19.0477C4.47632 19.4917 5.20763 19.6877 5.93073 19.5925C6.30717 19.5429 6.647 19.3922 7.0025 19.2043C7.28833 19.0532 7.60329 19.0596 7.8439 19.1986C8.08452 19.3375 8.24756 19.607 8.25964 19.9301C8.27467 20.3319 8.31403 20.7016 8.45932 21.0524C8.73843 21.7262 9.27379 22.2616 9.94761 22.5407C10.238 22.661 10.5375 22.7076 10.8546 22.7292C11.1592 22.75 11.5303 22.75 11.9747 22.75H12.0252C12.4697 22.75 12.8407 22.75 13.1454 22.7292C13.4625 22.7076 13.762 22.661 14.0524 22.5407C14.7262 22.2616 15.2616 21.7262 15.5407 21.0524C15.686 20.7016 15.7253 20.3319 15.7403 19.93C15.7524 19.607 15.9154 19.3375 16.156 19.1985C16.3966 19.0596 16.7116 19.0532 16.9974 19.2042C17.3529 19.3921 17.6927 19.5429 18.0692 19.5924C18.7923 19.6876 19.5236 19.4917 20.1022 19.0477C20.3516 18.8563 20.5417 18.6203 20.719 18.3565C20.8893 18.1031 21.0748 17.7818 21.297 17.3969L21.3223 17.3531C21.5445 16.9682 21.7301 16.6468 21.8644 16.3726C22.0042 16.0872 22.1135 15.8045 22.1546 15.4929C22.2498 14.7697 22.0538 14.0384 21.6098 13.4598C21.3787 13.1586 21.0782 12.9397 20.7378 12.7258C20.464 12.5538 20.3121 12.2778 20.3121 11.9999C20.3121 11.7221 20.464 11.4462 20.7377 11.2742C21.0783 11.0603 21.3788 10.8414 21.6099 10.5401C22.0539 9.96149 22.2499 9.23019 22.1547 8.50708C22.1136 8.19546 22.0043 7.91274 21.8645 7.6273C21.7302 7.35313 21.5447 7.03183 21.3224 6.64695L21.2972 6.60318C21.0749 6.21825 20.8894 5.89688 20.7191 5.64347C20.5418 5.37967 20.3517 5.1436 20.1023 4.95225C19.5237 4.50826 18.7924 4.3123 18.0692 4.4075C17.6928 4.45706 17.353 4.60782 16.9975 4.79572C16.7117 4.94679 16.3967 4.94036 16.1561 4.80144C15.9155 4.66253 15.7524 4.39297 15.7403 4.06991C15.7253 3.66808 15.686 3.2984 15.5407 2.94762C15.2616 2.27379 14.7262 1.73844 14.0524 1.45933C13.762 1.33905 13.4625 1.29241 13.1454 1.27077C12.8407 1.24999 12.4697 1.24999 12.0252 1.25H11.9747ZM10.5216 2.84515C10.5988 2.81319 10.716 2.78372 10.9567 2.76729C11.2042 2.75041 11.5238 2.75 12 2.75C12.4762 2.75 12.7958 2.75041 13.0432 2.76729C13.284 2.78372 13.4012 2.81319 13.4783 2.84515C13.7846 2.97202 14.028 3.21536 14.1548 3.52165C14.1949 3.61826 14.228 3.76887 14.2414 4.12597C14.271 4.91835 14.68 5.68129 15.4061 6.10048C16.1321 6.51968 16.9974 6.4924 17.6984 6.12188C18.0143 5.9549 18.1614 5.90832 18.265 5.89467C18.5937 5.8514 18.9261 5.94047 19.1891 6.14228C19.2554 6.19312 19.3395 6.27989 19.4741 6.48016C19.6125 6.68603 19.7726 6.9626 20.0107 7.375C20.2488 7.78741 20.4083 8.06438 20.5174 8.28713C20.6235 8.50382 20.6566 8.62007 20.6675 8.70287C20.7108 9.03155 20.6217 9.36397 20.4199 9.62698C20.3562 9.70995 20.2424 9.81399 19.9397 10.0041C19.2684 10.426 18.8122 11.1616 18.8121 11.9999C18.8121 12.8383 19.2683 13.574 19.9397 13.9959C20.2423 14.186 20.3561 14.29 20.4198 14.373C20.6216 14.636 20.7107 14.9684 20.6674 15.2971C20.6565 15.3799 20.6234 15.4961 20.5173 15.7128C20.4082 15.9355 20.2487 16.2125 20.0106 16.6249C19.7725 17.0373 19.6124 17.3139 19.474 17.5198C19.3394 17.72 19.2553 17.8068 19.189 17.8576C18.926 18.0595 18.5936 18.1485 18.2649 18.1053C18.1613 18.0916 18.0142 18.045 17.6983 17.8781C16.9973 17.5075 16.132 17.4803 15.4059 17.8995C14.68 18.3187 14.271 19.0816 14.2414 19.874C14.228 20.2311 14.1949 20.3817 14.1548 20.4784C14.028 20.7846 13.7846 21.028 13.4783 21.1549C13.4012 21.1868 13.284 21.2163 13.0432 21.2327C12.7958 21.2496 12.4762 21.25 12 21.25C11.5238 21.25 11.2042 21.2496 10.9567 21.2327C10.716 21.2163 10.5988 21.1868 10.5216 21.1549C10.2154 21.028 9.97201 20.7846 9.84514 20.4784C9.80512 20.3817 9.77195 20.2311 9.75859 19.874C9.72896 19.0817 9.31997 18.3187 8.5939 17.8995C7.86784 17.4803 7.00262 17.5076 6.30158 17.8781C5.98565 18.0451 5.83863 18.0917 5.73495 18.1053C5.40626 18.1486 5.07385 18.0595 4.81084 17.8577C4.74458 17.8069 4.66045 17.7201 4.52586 17.5198C4.38751 17.314 4.22736 17.0374 3.98926 16.625C3.75115 16.2126 3.59171 15.9356 3.4826 15.7129C3.37646 15.4962 3.34338 15.3799 3.33248 15.2971C3.28921 14.9684 3.37828 14.636 3.5801 14.373C3.64376 14.2901 3.75761 14.186 4.0602 13.9959C4.73158 13.5741 5.18782 12.8384 5.18786 12.0001C5.18791 11.1616 4.73165 10.4259 4.06021 10.004C3.75769 9.81389 3.64385 9.70987 3.58019 9.62691C3.37838 9.3639 3.28931 9.03149 3.33258 8.7028C3.34348 8.62001 3.37656 8.50375 3.4827 8.28707C3.59181 8.06431 3.75125 7.78734 3.98935 7.37493C4.22746 6.96253 4.3876 6.68596 4.52596 6.48009C4.66055 6.27983 4.74468 6.19305 4.81093 6.14222C5.07395 5.9404 5.40636 5.85133 5.73504 5.8946C5.83873 5.90825 5.98576 5.95483 6.30173 6.12184C7.00273 6.49235 7.86791 6.51962 8.59394 6.10045C9.31998 5.68128 9.72896 4.91837 9.75859 4.12602C9.77195 3.76889 9.80512 3.61827 9.84514 3.52165C9.97201 3.21536 10.2154 2.97202 10.5216 2.84515Z"\r\n        fill="#000000" />\r\n</svg>';
   const FIXED_STRING = b64decode(
     "TdTC5rgxYgkOUrPHpnM7pByyRiuCmrWKGWs521cXdST0m69/COjWjSanLjfBqVovHwWlGJKu8pSXMrYqOKrdWA=="
   );
@@ -2580,16 +1513,22 @@
   function load() {
     const s = read(STORE_KEY);
     if (!(s == null ? void 0 : s.device_id) || !(s == null ? void 0 : s.install_id)) return null;
+    if (s.key) {
+      if (!read("keyinfo")) {
+        write("keyinfo", { key: s.key, keyver: s.keyver });
+      }
+      delete s.key;
+      delete s.keyver;
+      write(STORE_KEY, s);
+    }
     return {
       device_id: s.device_id,
       install_id: s.install_id,
       device_type: s.device_type,
-      device_brand: s.device_brand,
-      key_info: s.key ? { key: b64decode(s.key), keyver: s.keyver } : void 0
+      device_brand: s.device_brand
     };
   }
   function save(c, vipExpireTime) {
-    var _a;
     const s = {
       device_id: c.device_id,
       install_id: c.install_id,
@@ -2597,10 +1536,6 @@
       device_brand: c.device_brand,
       vip_expire_time: vipExpireTime
     };
-    if ((_a = c.key_info) == null ? void 0 : _a.key) {
-      s.key = b64encode(c.key_info.key);
-      s.keyver = c.key_info.keyver;
-    }
     write(STORE_KEY, s);
   }
   async function provisionDevice() {
@@ -2615,6 +1550,10 @@
     };
     _config.currentConfig = c;
     save(c, vipExpireTime);
+    write("keyinfo", {
+      key: b64encode(keyInfo.key),
+      keyver: keyInfo.keyver
+    });
     return c;
   }
   async function ensureDevice() {
@@ -2645,6 +1584,3787 @@
       return defaultConfig;
     }
   }
+  let replaceInflight = null;
+  let unverified = false;
+  function markDeviceHealthy() {
+    unverified = false;
+  }
+  function replaceDevice() {
+    if (replaceInflight) return replaceInflight;
+    replaceInflight = doReplace().finally(() => {
+      replaceInflight = null;
+    });
+    return replaceInflight;
+  }
+  async function doReplace() {
+    if (unverified) {
+      console.warn(
+        "[fqa:device] 刚换过设备仍然收到空响应，问题多半不在设备（检查网络代理是否拦了 reading.snssdk.com）"
+      );
+      return null;
+    }
+    if (settings$1.deviceId.trim() && settings$1.installId.trim()) {
+      console.warn("[fqa:device] 当前是手填设备，不自动替换。若接口持续失败，请到设置里清空或改用自动注册");
+      return null;
+    }
+    unverified = true;
+    console.warn("[fqa:device] 当前设备已被服务端作废，正在注册新设备…");
+    try {
+      del("keyinfo");
+      _config.currentConfig.key_info = void 0;
+      const c = await provisionDevice();
+      console.log("[fqa:device] 已换到新设备:", c.device_id);
+      return c;
+    } catch (e) {
+      console.error("[fqa:device] 注册新设备失败:", e);
+      return null;
+    }
+  }
+  const appBaseUrl = "https://reading.snssdk.com/reading";
+  const redcandleBaseUrl = "https://api5-sinfonlinec.jxbhmy.com/reading";
+  const webBaseUrl = "https://fanqienovel.com/reading";
+  const appUserAgent = "com.dragon.read";
+  function buildAppQuery(extra) {
+    const c = _config.currentConfig;
+    return new URLSearchParams({
+      iid: c.install_id,
+      device_id: c.device_id,
+      ac: "wifi",
+      channel: "43536163a",
+      aid: "1967",
+      app_name: "novelapp",
+      version_code: "70132",
+      version_name: "7.0.1.32",
+      device_platform: "android",
+      os: "android",
+      ssmix: "a",
+      os_version: "10",
+      device_type: c.device_type || "P30",
+      device_brand: c.device_brand || "realme",
+      update_version_code: "70132",
+      manifest_version_code: "70132",
+      pv_player: "70132",
+      ...extra
+    });
+  }
+  async function webGet(path, query, credentials2 = "omit") {
+    const url = `${webBaseUrl}${path}?${buildAppQuery(query).toString()}`;
+    const signed = await signRequest(url);
+    const res = await fetch$1(url, { headers: signed, credentials: credentials2 });
+    if (!res.ok) {
+      throw new Error(`请求失败(${res.status})`);
+    }
+    return res.json();
+  }
+  function isUsable(res) {
+    if (!res || res.status !== 200) return false;
+    try {
+      const j = res.json();
+      return !j || j.code === void 0 || j.code === 0;
+    } catch {
+      return false;
+    }
+  }
+  async function requestApp(path, query, headers) {
+    const url = `${appBaseUrl}${path}?${buildAppQuery(query).toString()}`;
+    const signed = await signRequest(url);
+    return apiFetch(url, {
+      method: "GET",
+      headers: { ...signed, "User-Agent": appUserAgent, ...headers }
+    });
+  }
+  async function requestRedcandle(path, query, headers) {
+    const url = `${redcandleBaseUrl}${path}?${buildAppQuery(query).toString()}`;
+    return apiFetch(url, {
+      method: "GET",
+      headers: { "User-Agent": appUserAgent, ...headers }
+    });
+  }
+  async function requestAppWithRecovery(path, query, headers) {
+    const res = await requestApp(path, query, headers);
+    if (!isEmptyResponse(res)) {
+      markDeviceHealthy();
+      return res;
+    }
+    console.warn(`[fqa:api] ${path} 返回空响应体，判定当前设备已失效`);
+    if (!await replaceDevice()) return res;
+    const retry = await requestApp(path, query, headers);
+    if (!isEmptyResponse(retry)) markDeviceHealthy();
+    return retry;
+  }
+  async function appGet(path, query, headers) {
+    if (settings$1.apiPreference === "redcandle") {
+      try {
+        const res = await requestRedcandle(path, query, headers);
+        if (isUsable(res)) return res;
+        console.warn(`[fqa:api] 红烛接口数据不全，回落到番茄 APP: ${path}`);
+      } catch (e) {
+        console.warn(`[fqa:api] 红烛接口请求失败，回落到番茄 APP: ${path}`, e);
+      }
+    }
+    return requestAppWithRecovery(path, query, headers);
+  }
+  async function appPost(path, body, query, headers) {
+    return postSigned(appBaseUrl + path, body, query, headers);
+  }
+  async function postSigned(base, body, query, headers) {
+    const url = `${base}?${buildAppQuery(query).toString()}`;
+    const signed = await signRequest(url, body);
+    console.log("---start--- APP POST ", url);
+    const res = await apiFetch(url, {
+      method: "POST",
+      headers: {
+        ...signed,
+        "User-Agent": appUserAgent,
+        "Content-Type": "application/json; charset=utf-8",
+        ...headers
+      },
+      body
+    });
+    console.log("---complete--- APP POST ", url, res);
+    return res;
+  }
+  async function decryptChapter(encrypted, rawData, config = defaultConfig) {
+    var _a;
+    if (!encrypted) {
+      throw new Error("Invalid encrypted chapter");
+    }
+    const buf = b64decode(encrypted);
+    const iv = buf.slice(0, 16);
+    const data = buf.slice(16);
+    const key = (_a = config.key_info) == null ? void 0 : _a.key;
+    if (!key) {
+      throw new Error("Missing decrypt key");
+    }
+    const subtle = getSubtle();
+    const cryptoKey = await subtle.importKey(
+      "raw",
+      key,
+      { name: "AES-CBC" },
+      false,
+      ["decrypt"]
+    );
+    return subtle.decrypt(
+      { name: "AES-CBC", iv },
+      cryptoKey,
+      data
+    ).then(async (decrypted) => {
+      if (rawData && (rawData == null ? void 0 : rawData.compress_status) === 1) {
+        decrypted = await gunzip(decrypted);
+      }
+      const decoder = new TextDecoder();
+      const plain = decoder.decode(decrypted);
+      if (plain.trim().startsWith("<")) {
+        return plain;
+      }
+      try {
+        return JSON.parse(plain);
+      } catch (e) {
+        console.warn("Invalid chapter content: ", plain, e);
+        return void 0;
+      }
+    });
+  }
+  async function decryptComicImage(image, key) {
+    const subtle = getSubtle();
+    const cryptoKey = await subtle.importKey(
+      "raw",
+      unhex(key),
+      { name: "AES-GCM" },
+      false,
+      ["decrypt"]
+    );
+    const iv = image.slice(0, 12);
+    const data = image.slice(12);
+    return await subtle.decrypt(
+      { name: "AES-GCM", iv },
+      cryptoKey,
+      data
+    );
+  }
+  function reverseHex(value) {
+    const be = BigInt(value).toString(16).padStart(32, "0");
+    let result = "";
+    for (let i2 = be.length; i2 > 0; i2 -= 2) result += be.slice(i2 - 2, i2);
+    return result;
+  }
+  async function encryptKeyinfoBody(config) {
+    const deviceId = config.device_id;
+    const iv = new TextEncoder().encode(randomString(16));
+    const data = new Uint8Array(unhex(reverseHex(deviceId))).slice(0, 8);
+    console.log(data);
+    const subtle = getSubtle();
+    const k = await subtle.importKey(
+      "raw",
+      shared_key,
+      { name: "AES-CBC" },
+      false,
+      ["encrypt"]
+    );
+    const encrypted = await subtle.encrypt(
+      { name: "AES-CBC", iv },
+      k,
+      data
+    );
+    const final = new Uint8Array(iv.length + encrypted.byteLength);
+    console.log(final);
+    final.set(iv, 0);
+    final.set(new Uint8Array(encrypted), iv.length);
+    return JSON.stringify({
+      content: b64encode(final.buffer)
+    });
+  }
+  async function decryptKeyinfoResponse(encrypted) {
+    const buf = b64decode(encrypted);
+    const iv = buf.slice(0, 16);
+    const data = buf.slice(16);
+    const subtle = getSubtle();
+    const k = await subtle.importKey(
+      "raw",
+      shared_key,
+      { name: "AES-CBC" },
+      false,
+      ["decrypt"]
+    );
+    return subtle.decrypt(
+      { name: "AES-CBC", iv },
+      k,
+      data
+    );
+  }
+  async function refreshKeyinfo() {
+    var _a, _b, _c;
+    const b = await encryptKeyinfoBody(_config.currentConfig);
+    const res = await appPost("/crypt/registerkey", b);
+    const j = res.json();
+    const ek = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.key;
+    if (!ek) {
+      throw new Error(`Failed to get key info: ${res.responseText}`);
+    }
+    const key = await decryptKeyinfoResponse(ek);
+    const keyinfo = {
+      key,
+      keyver: (_b = j == null ? void 0 : j.data) == null ? void 0 : _b.keyver
+    };
+    console.log("Refreshed key info:", keyinfo);
+    _config.currentConfig.key_info = keyinfo;
+    write("keyinfo", {
+      key: b64encode(key),
+      keyver: (_c = j == null ? void 0 : j.data) == null ? void 0 : _c.keyver
+    });
+  }
+  let refreshInflight = null;
+  function refreshKey() {
+    if (!refreshInflight) {
+      refreshInflight = refreshKeyinfo().finally(() => {
+        refreshInflight = null;
+      });
+    }
+    return refreshInflight;
+  }
+  async function ensureKeyinfo(expectedKeyVersion) {
+    const keyinfo = _config.currentConfig.key_info;
+    const cachedKeyInfo = read("keyinfo");
+    console.log("cached key info: ", cachedKeyInfo);
+    if (cachedKeyInfo) {
+      const cki = {
+        key: b64decode(cachedKeyInfo.key),
+        keyver: cachedKeyInfo.keyver
+      };
+      if (typeof expectedKeyVersion === "undefined" || cki.keyver === expectedKeyVersion) {
+        _config.currentConfig.key_info = cki;
+        return;
+      }
+    }
+    if (!keyinfo) {
+      return await refreshKey();
+    }
+    if ((keyinfo == null ? void 0 : keyinfo.keyver) !== expectedKeyVersion) {
+      return await refreshKey();
+    }
+  }
+  async function getChapter(itemId2, _retry) {
+    var _a, _b;
+    if (typeof _retry === "undefined") _retry = 0;
+    if (_retry > 5) {
+      throw new Error(`Failed to get chapter: ${itemId2}`);
+    }
+    if (!_config.currentConfig.key_info) {
+      await ensureKeyinfo();
+    }
+    const res = await appGet("/reader/full/v", { item_id: itemId2, req_type: "1" });
+    const j = (_a = res.json()) == null ? void 0 : _a.data;
+    if (!j) {
+      console.warn("Failed to get chapter: ", itemId2, ", response: ", res.responseText);
+      return await getChapter(itemId2, _retry + 1);
+    }
+    if ((j == null ? void 0 : j.content) === "Invalid" || (j == null ? void 0 : j.key_version) !== ((_b = _config.currentConfig.key_info) == null ? void 0 : _b.keyver)) {
+      console.warn("Key reg expired, regster again and retrying...");
+      if ((j == null ? void 0 : j.content) === "Invalid") {
+        await refreshKey();
+      } else {
+        await ensureKeyinfo(parseInt(j == null ? void 0 : j.key_version));
+      }
+      return await getChapter(itemId2, _retry + 1);
+    }
+    j.content = await decryptChapter(j == null ? void 0 : j.content, j, _config.currentConfig);
+    return j;
+  }
+  async function getChapters(itemIds, bookId2 = "0", _retry = 0) {
+    var _a, _b;
+    if (itemIds.length === 0) return {};
+    if (!_config.currentConfig.key_info) {
+      await ensureKeyinfo();
+    }
+    const res = await appGet("/reader/batch_full/v", {
+      item_ids: itemIds.join(","),
+      book_id: bookId2,
+      novel_text_type: "1",
+      req_type: "1"
+    });
+    const raw = (_a = res.json()) == null ? void 0 : _a.data;
+    const entries = raw && typeof raw === "object" ? Array.isArray(raw) ? raw.map((it) => {
+      var _a2;
+      return [String((it == null ? void 0 : it.item_id) ?? ((_a2 = it == null ? void 0 : it.novel_data) == null ? void 0 : _a2.item_id) ?? ""), it];
+    }) : Object.entries(raw) : [];
+    if (entries.length === 0) {
+      throw new Error(`Failed to batch get chapters: ${res.responseText}`);
+    }
+    const localKeyver = (_b = _config.currentConfig.key_info) == null ? void 0 : _b.keyver;
+    const expired = entries.filter(
+      ([, item]) => (item == null ? void 0 : item.code) === 0 || (item == null ? void 0 : item.code) === void 0 ? (item == null ? void 0 : item.content) === "Invalid" || (item == null ? void 0 : item.key_version) !== void 0 && Number(item.key_version) !== localKeyver : false
+    );
+    if (expired.length > 0 && _retry < 2) {
+      const [, sample] = expired[0];
+      console.warn(
+        `[fqa:api] 批量正文密钥失效（${expired.length}/${entries.length} 章），重新注册后重试。本地 keyver=${localKeyver}，服务端=${sample == null ? void 0 : sample.key_version}`
+      );
+      await refreshKey();
+      await sleep(800);
+      return await getChapters(itemIds, bookId2, _retry + 1);
+    }
+    const results = {};
+    for (const [id, item] of entries) {
+      if (!id) continue;
+      if ((item == null ? void 0 : item.code) !== void 0 && item.code !== 0) {
+        results[id] = { ...item, item_id: id, error: `code ${item.code}` };
+        continue;
+      }
+      if (!(item == null ? void 0 : item.content) || item.content === "Invalid") {
+        results[id] = { ...item, item_id: id, error: "Invalid content" };
+        continue;
+      }
+      try {
+        results[id] = {
+          ...item,
+          item_id: id,
+          novel_data: item.novel_data,
+          content: await decryptChapter(item.content, item, _config.currentConfig)
+        };
+      } catch (e) {
+        results[id] = { ...item, item_id: id, error: String(e) };
+      }
+    }
+    return results;
+  }
+  async function getCatalogRaw(bookId2) {
+    var _a;
+    const response = await appGet("/bookapi/directory/all_items/v", { book_id: bookId2 });
+    const j = response.json();
+    const items = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.item_data_list;
+    if ((j == null ? void 0 : j.code) !== 0 || !Array.isArray(items) || items.length === 0) {
+      throw new Error("Empty catalog");
+    }
+    return [items, items.map((it) => String(it.item_id))];
+  }
+  async function webCatalog(bookId2) {
+    const url = `https://fanqienovel.com/api/reader/directory/detail?bookId=${bookId2}`;
+    const response = await apiFetch(url);
+    const rj = response.json();
+    const d = rj.data;
+    const allItems = d.allItemIds;
+    const volmap = {};
+    const vname = d.volumeNameList;
+    for (let i2 = 0; i2 < vname.length; i2++) {
+      const volumeName = vname[i2];
+      if (volumeName !== void 0) {
+        volmap[volumeName] = d.chapterListWithVolume[i2];
+      }
+    }
+    return [volmap, allItems];
+  }
+  async function getCatalog(bookId2) {
+    const r = await getCatalogRaw(bookId2);
+    let catalogRaw = r[0];
+    let allItemIds = r[1];
+    if (!catalogRaw || !allItemIds) {
+      const rw = await webCatalog(bookId2);
+      catalogRaw = rw[0];
+      allItemIds = rw[1];
+    }
+    const vmap = {};
+    const chapters = [];
+    catalogRaw.forEach((item) => {
+      const volumeName = item.volume_name ?? "";
+      const chapterItem = {
+        item_id: String(item.item_id || item.itemId),
+        title: item.title,
+        // YYYY-MM-DD HH:mm:ss
+        update_time: moment((item.first_pass_time || item.firstPassTime) * 1e3).format("YYYY-MM-DD HH:mm:ss"),
+        char_count: item.chapter_word_number || 0,
+        volume_title: volumeName
+      };
+      chapters.push(chapterItem);
+      if (!vmap[volumeName]) {
+        vmap[volumeName] = {
+          title: volumeName,
+          book_id: bookId2,
+          chapter_list: []
+        };
+      }
+      vmap[volumeName].chapter_list.push(chapterItem);
+    });
+    return {
+      book_id: bookId2,
+      volume_list: Object.values(vmap),
+      chapter_list: chapters,
+      all_item_ids: allItemIds
+    };
+  }
+  function mappingCreationStatus(status) {
+    switch (status) {
+      case "0":
+        return "完结";
+      case "1":
+        return "连载";
+      case "4":
+        return "断更";
+      default:
+        return "未知";
+    }
+  }
+  async function getBookInfoRaw(bookId2) {
+    const response = await appGet("/bookapi/detail/v", { book_id: bookId2 });
+    const j = response.json();
+    console.log("Book Info:", j);
+    return j.data;
+  }
+  async function getBookInfo(bookId2) {
+    const bookInfo = await getBookInfoRaw(bookId2);
+    if (!bookInfo) {
+      throw new Error("Book not found");
+    }
+    return {
+      book_id: bookInfo.book_id,
+      title: bookInfo.book_name || bookInfo.original_book_name,
+      author: bookInfo.author,
+      cover_url: bookInfo.thumb_url,
+      summary: bookInfo.abstract,
+      // volume_list: bookInfo.volume_list,
+      update_time: moment(bookInfo.last_chapter_first_pass_time * 1e3).format("YYYY-MM-DD HH:mm:ss"),
+      status: mappingCreationStatus(bookInfo.creation_status)
+      // chapter_count: bookInfo.chapter_count,
+    };
+  }
+  async function getBookInfoAndCatalog(book) {
+    if (typeof book !== "string") {
+      book = book.book_id;
+    }
+    const bookInfo = await getBookInfo(book);
+    if (!bookInfo) {
+      throw new Error("Book not found");
+    }
+    const catalog = await getCatalog(bookInfo.book_id);
+    console.log("Catalog:", catalog);
+    bookInfo.volume_list = catalog.volume_list;
+    bookInfo.chapter_list = catalog.chapter_list;
+    return bookInfo;
+  }
+  const CDN_PREFIX = "https://p3-novel.byteimg.com/origin/";
+  const cssCache = /* @__PURE__ */ new Map();
+  function stripComments(css) {
+    return css.replace(/\/\*[\s\S]*?\*\//g, "");
+  }
+  function scopeSelector(selector, scope) {
+    const s = selector.trim();
+    if (!s) return "";
+    const where = `:where(${scope})`;
+    if (/^(body|html|:root)$/i.test(s)) return where;
+    const m = s.match(/^(body|html)\b([\s\S]*)$/i);
+    if (m) return `${where}${m[2]}`;
+    return `${where} ${s}`;
+  }
+  function stripRootDecls(body) {
+    return body.split(";").filter((decl) => !/^\s*(color|background|background-color|font-size)\s*:/i.test(decl)).join(";");
+  }
+  function scopeCss(css, scope) {
+    const src = stripComments(css);
+    let out = "";
+    let buf = "";
+    let i2 = 0;
+    while (i2 < src.length) {
+      const ch = src[i2];
+      if (ch === "{") {
+        const prelude = buf.trim();
+        buf = "";
+        i2++;
+        if (prelude.startsWith("@")) {
+          if (/^@(media|supports|document)\b/i.test(prelude)) {
+            const inner2 = readBlock(src, i2);
+            out += `${prelude}{${scopeCss(inner2.text, scope)}}`;
+            i2 = inner2.end;
+          } else {
+            const inner2 = readBlock(src, i2);
+            out += `${prelude}{${inner2.text}}`;
+            i2 = inner2.end;
+          }
+          continue;
+        }
+        const inner = readBlock(src, i2);
+        const selectors = prelude.split(",").map((s) => scopeSelector(s, scope)).filter(Boolean);
+        const isRoot = selectors.length === 1 && selectors[0] === `:where(${scope})`;
+        const declarations = isRoot ? stripRootDecls(inner.text) : inner.text;
+        if (selectors.length && declarations.trim()) {
+          out += `${selectors.join(",")}{${declarations}}`;
+        }
+        i2 = inner.end;
+        continue;
+      }
+      if (ch === ";" && buf.trim().startsWith("@")) {
+        buf = "";
+        i2++;
+        continue;
+      }
+      buf += ch;
+      i2++;
+    }
+    return out;
+  }
+  function readBlock(src, start) {
+    let depth = 1;
+    let i2 = start;
+    while (i2 < src.length && depth > 0) {
+      const c = src[i2];
+      if (c === "{") depth++;
+      else if (c === "}") depth--;
+      if (depth === 0) break;
+      i2++;
+    }
+    return { text: src.slice(start, i2), end: Math.min(i2 + 1, src.length) };
+  }
+  function parseCssMap(cssMap) {
+    if (!cssMap || typeof cssMap !== "string") return {};
+    try {
+      const parsed = JSON.parse(cssMap);
+      return parsed && typeof parsed === "object" ? parsed : {};
+    } catch {
+      return {};
+    }
+  }
+  async function fetchCss(uri) {
+    const cached = cssCache.get(uri);
+    if (cached !== void 0) return cached;
+    try {
+      const res = await fetch(CDN_PREFIX + uri);
+      const text = res.ok ? await res.text() : "";
+      cssCache.set(uri, text);
+      return text;
+    } catch (e) {
+      console.warn("获取书籍样式表失败:", uri, e);
+      cssCache.set(uri, "");
+      return "";
+    }
+  }
+  async function getScopedBookCss(cssMap, scope) {
+    const map = parseCssMap(cssMap);
+    const uris = Object.values(map).filter(Boolean);
+    if (uris.length === 0) return "";
+    const sheets = await Promise.all(uris.map(fetchCss));
+    return sheets.filter(Boolean).map((css) => scopeCss(css, scope)).join("\n");
+  }
+  async function applyBookCss(cssMap, scope, styleId = "fqa-book-style") {
+    const css = await getScopedBookCss(cssMap, scope);
+    let el = document.getElementById(styleId);
+    if (!css) {
+      el == null ? void 0 : el.remove();
+      return false;
+    }
+    if (!el) {
+      el = document.createElement("style");
+      el.id = styleId;
+      document.head.appendChild(el);
+    }
+    el.textContent = css;
+    return true;
+  }
+  const FOOTNOTE_CLASS = "fqa-footnote";
+  const FOOTNOTE_REF_CLASS = "fqa-footnote-ref";
+  const FOOTNOTE_LIST_CLASS = "fqa-footnote-list";
+  function byAttr(root, tag, attr, value) {
+    return [...root.querySelectorAll(tag)].filter((el) => {
+      const v = el.getAttribute(attr);
+      if (v === null) return false;
+      return value === void 0 || v === value;
+    });
+  }
+  function processFootnotes(root) {
+    const notes = /* @__PURE__ */ new Map();
+    const sections = byAttr(root, "section", "epub:type", "footnotes");
+    for (const section of sections) {
+      for (const aside of section.querySelectorAll("aside")) {
+        const id = aside.getAttribute("id");
+        if (id) notes.set(id, aside.innerHTML.trim());
+      }
+    }
+    if (notes.size === 0) {
+      for (const aside of byAttr(root, "aside", "epub:type", "footnote")) {
+        const id = aside.getAttribute("id");
+        if (id) notes.set(id, aside.innerHTML.trim());
+      }
+    }
+    const collectRefs = (scope) => {
+      const set = new Set(byAttr(scope, "a", "epub:type", "noteref"));
+      for (const img of scope.querySelectorAll("img.bdFootnote")) {
+        const a = img.closest('a[href^="#"]');
+        if (a && scope.contains(a)) set.add(a);
+      }
+      return [...scope.querySelectorAll("a")].filter((a) => set.has(a));
+    };
+    const inSection = (el) => sections.some((s) => s.contains(el));
+    const refs = collectRefs(root).filter((a) => !inSection(a));
+    if (refs.length === 0 && notes.size === 0) return 0;
+    const ordered = [];
+    const numberOf = /* @__PURE__ */ new Map();
+    let counter = 0;
+    const makeSup = (num2, text) => {
+      const sup = document.createElement("sup");
+      sup.className = FOOTNOTE_REF_CLASS;
+      sup.textContent = String(num2);
+      sup.setAttribute("role", "button");
+      sup.setAttribute("tabindex", "0");
+      sup.title = stripTags(text);
+      return sup;
+    };
+    refs.forEach((ref2) => {
+      const href = ref2.getAttribute("href") ?? "";
+      const id = href.startsWith("#") ? href.slice(1) : "";
+      const text = notes.get(id);
+      if (text === void 0) return;
+      counter += 1;
+      numberOf.set(id, counter);
+      ordered.push({ num: counter, text });
+      ref2.replaceWith(makeSup(counter, text));
+    });
+    for (const [id, text] of notes) {
+      if (numberOf.has(id)) continue;
+      counter += 1;
+      numberOf.set(id, counter);
+      ordered.push({ num: counter, text });
+    }
+    for (const section of sections) section.remove();
+    if (ordered.length > 0) {
+      const list = document.createElement("ol");
+      list.className = FOOTNOTE_LIST_CLASS;
+      for (const { num: num2, text } of ordered) {
+        const li = document.createElement("li");
+        li.id = `fqa-fn-${num2}`;
+        li.innerHTML = text;
+        for (const inner of collectRefs(li)) {
+          const innerId = (inner.getAttribute("href") ?? "").replace(/^#/, "");
+          const innerNum = numberOf.get(innerId);
+          const innerText = notes.get(innerId);
+          if (innerNum && innerText !== void 0) {
+            inner.replaceWith(makeSup(innerNum, innerText));
+          } else {
+            inner.remove();
+          }
+        }
+        list.appendChild(li);
+      }
+      const wrapper = document.createElement("section");
+      wrapper.className = FOOTNOTE_CLASS;
+      const heading = document.createElement("div");
+      heading.className = "fqa-footnote-title";
+      heading.textContent = "注释";
+      wrapper.appendChild(heading);
+      wrapper.appendChild(list);
+      root.appendChild(wrapper);
+    }
+    for (const img of root.querySelectorAll("img.bdFootnote")) img.remove();
+    return ordered.length;
+  }
+  function stripTags(html) {
+    const el = document.createElement("div");
+    el.innerHTML = html;
+    return (el.textContent ?? "").replace(/\s+/g, " ").trim();
+  }
+  const KNOWN_TIERS = /muye-reader-content-(16|20|24|28|32)\b/;
+  function syncFootnoteFontSize(container2) {
+    const box = container2.closest('[class*="muye-reader-content-"]');
+    const apply2 = () => {
+      container2.style.removeProperty("--fqa-body-size");
+      if (!box || KNOWN_TIERS.test(box.className)) return;
+      const p = container2.querySelector("p");
+      if (!p) return;
+      const size = getComputedStyle(p).fontSize;
+      if (size) container2.style.setProperty("--fqa-body-size", size);
+    };
+    apply2();
+    if (!box) return;
+    const holder = container2;
+    if (holder.fqaFontObserver) return;
+    const observer2 = new MutationObserver(apply2);
+    observer2.observe(box, { attributes: true, attributeFilter: ["class"] });
+    holder.fqaFontObserver = observer2;
+  }
+  function bindFootnoteInteraction(container2) {
+    syncFootnoteFontSize(container2);
+    if (container2.dataset.fqaFootnoteBound === "1") return;
+    container2.dataset.fqaFootnoteBound = "1";
+    const activate = (sup) => {
+      var _a;
+      const num2 = (_a = sup.textContent) == null ? void 0 : _a.trim();
+      if (!num2) return;
+      const target = container2.querySelector(`#fqa-fn-${num2}`);
+      if (!target) return;
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+      target.classList.add("fqa-footnote-active");
+      setTimeout(() => target.classList.remove("fqa-footnote-active"), 1600);
+    };
+    container2.addEventListener("click", (e) => {
+      var _a, _b;
+      const sup = (_b = (_a = e.target) == null ? void 0 : _a.closest) == null ? void 0 : _b.call(_a, `.${FOOTNOTE_REF_CLASS}`);
+      if (sup) {
+        e.preventDefault();
+        activate(sup);
+      }
+    });
+    container2.addEventListener("keydown", (e) => {
+      var _a, _b;
+      const ke = e;
+      if (ke.key !== "Enter" && ke.key !== " ") return;
+      const sup = (_b = (_a = ke.target) == null ? void 0 : _a.closest) == null ? void 0 : _b.call(_a, `.${FOOTNOTE_REF_CLASS}`);
+      if (sup) {
+        ke.preventDefault();
+        activate(sup);
+      }
+    });
+  }
+  const leftIcon = '<?xml version="1.0" ?><svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg"><title/><g data-name="1" id="_1"><path fill="currentColor" d="M353,450a15,15,0,0,1-10.61-4.39L157.5,260.71a15,15,0,0,1,0-21.21L342.39,54.6a15,15,0,1,1,21.22,21.21L189.32,250.1,363.61,424.39A15,15,0,0,1,353,450Z"/></g></svg>';
+  const playingIcon = '<?xml version="1.0" encoding="UTF-8" standalone="no"?>\n<!-- Created with Inkscape (http://www.inkscape.org/) -->\n\n<svg\n   xmlns:dc="http://purl.org/dc/elements/1.1/"\n   xmlns:cc="http://creativecommons.org/ns#"\n   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"\n   xmlns:svg="http://www.w3.org/2000/svg"\n   xmlns="http://www.w3.org/2000/svg"\n   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"\n   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"\n   width="22"\n   height="22"\n   viewBox="0 0 5.8208332 5.8208335"\n   version="1.1"\n   id="svg8"\n   inkscape:version="0.92.2 (5c3e80d, 2017-08-06)"\n   sodipodi:docname="stock_media-pause.svg">\n  <defs\n     id="defs2" />\n  <sodipodi:namedview\n     id="base"\n     pagecolor="#ffffff"\n     bordercolor="#666666"\n     borderopacity="1.0"\n     inkscape:pageopacity="0.0"\n     inkscape:pageshadow="2"\n     inkscape:zoom="7.9999996"\n     inkscape:cx="7.3825825"\n     inkscape:cy="8.7516629"\n     inkscape:document-units="mm"\n     inkscape:current-layer="layer1"\n     showgrid="true"\n     units="px"\n     inkscape:window-width="1360"\n     inkscape:window-height="718"\n     inkscape:window-x="0"\n     inkscape:window-y="24"\n     inkscape:window-maximized="1">\n    <inkscape:grid\n       type="xygrid"\n       id="grid10"\n       spacingx="0.52916667"\n       spacingy="0.52916667" />\n  </sodipodi:namedview>\n  <metadata\n     id="metadata5">\n    <rdf:RDF>\n      <cc:Work\n         rdf:about="">\n        <dc:format>image/svg+xml</dc:format>\n        <dc:type\n           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />\n        <dc:title></dc:title>\n      </cc:Work>\n    </rdf:RDF>\n  </metadata>\n  <g\n     inkscape:label="Capa 1"\n     inkscape:groupmode="layer"\n     id="layer1"\n     transform="translate(0,-291.17915)">\n    <path\n       style="fill:currentColor;fill-opacity:1;stroke:currentColor;stroke-width:1.29999995;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"\n       d="m 1.5875,292.23748 v 4.23334"\n       id="path892"\n       inkscape:connector-curvature="0" />\n    <path\n       inkscape:connector-curvature="0"\n       id="path894"\n       d="m 3.7041667,292.23748 v 4.23334"\n       style="fill:currentColor;fill-opacity:1;stroke:currentColor;stroke-width:1.29999995;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />\n  </g>\n</svg>\n';
+  const pausedIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">\n    <g>\n        <path fill="none" d="M0 0h24v24H0z"/>\n        <path d="M16.394 12L10 7.737v8.526L16.394 12zm2.982.416L8.777 19.482A.5.5 0 0 1 8 19.066V4.934a.5.5 0 0 1 .777-.416l10.599 7.066a.5.5 0 0 1 0 .832z" fill="currentColor"/>\n    </g>\n</svg>\n';
+  function decodeBase36(c) {
+    if (c >= 48 && c <= 57) return c - 48;
+    if (c >= 97 && c <= 122) return c - 97 + 10;
+    return 255;
+  }
+  function bitCount(n) {
+    n = n - (n >> 1 & 1431655765);
+    n = (n & 858993459) + (n >> 2 & 858993459);
+    return (n + (n >> 4) & 252645135) * 16843009 >> 24;
+  }
+  function decryptSpadeInner(spadeKey) {
+    const result = new Uint8Array(spadeKey);
+    const buff = new Uint8Array(2 + spadeKey.length);
+    buff.set([250, 85], 0);
+    buff.set(spadeKey, 2);
+    for (let i2 = 0; i2 < result.length; i2++) {
+      let v = (spadeKey[i2] ^ buff[i2]) - bitCount(i2) - 21;
+      while (v < 0) {
+        v += 255;
+      }
+      result[i2] = v;
+    }
+    return result;
+  }
+  function decryptSpade(spadeKeyBytes) {
+    const spadeKeyLen = spadeKeyBytes.length;
+    if (spadeKeyLen < 3) return "";
+    const paddingLen = (spadeKeyBytes[0] ^ spadeKeyBytes[1] ^ spadeKeyBytes[2]) - 48;
+    if (spadeKeyLen < paddingLen + 2) return "";
+    const innerInput = spadeKeyBytes.slice(1, spadeKeyLen - paddingLen);
+    const tmpBuff = decryptSpadeInner(innerInput);
+    if (tmpBuff.length === 0) return "";
+    const skipBytes = decodeBase36(tmpBuff[0]);
+    const decodedMessageLen = spadeKeyLen - paddingLen - 2;
+    const endIndex = 1 + decodedMessageLen - skipBytes;
+    if (endIndex > tmpBuff.length) return "";
+    const finalBytes = tmpBuff.slice(1, endIndex);
+    return new TextDecoder("utf-8").decode(finalBytes);
+  }
+  function decryptSpadeA(spadeAStr) {
+    try {
+      const bytes = new Uint8Array(b64decode(spadeAStr));
+      return decryptSpade(bytes);
+    } catch (e) {
+      console.error("Spade parsing error", e);
+      return "";
+    }
+  }
+  async function getPlayInfo(item_id, tone_id) {
+    const item_ids = Array.isArray(item_id) ? item_id.join(",") : item_id;
+    const resp = await appGet("/reader/audio/playinfo/", {
+      item_ids,
+      tone_id: tone_id.toString()
+    });
+    const j = resp.json();
+    const results = [];
+    if (Array.isArray(j.data)) {
+      for (let i2 of j.data) {
+        results.push({
+          urls: [i2.main_url, i2.backup_url].filter(Boolean),
+          vid: i2.vid,
+          key: i2.is_encrypt ? decryptSpadeA(i2.encryption_key) : "",
+          item_id: i2.item_id
+        });
+      }
+    }
+    return results;
+  }
+  async function getBookAvailableTones(book_id) {
+    var _a;
+    const resp = await appGet("/bookapi/audio/toneinfo/", { book_id });
+    const j = resp.json();
+    const results = [];
+    if (Array.isArray((_a = j == null ? void 0 : j.data) == null ? void 0 : _a.tts_tones)) {
+      for (let i2 of j.data.tts_tones) {
+        results.push({
+          id: i2.id,
+          name: i2.title,
+          gender: i2.tone_gender,
+          icon: i2.icon_url,
+          description: i2.description
+        });
+      }
+    }
+    return results;
+  }
+  async function getChapterParagraphTimeTag(item_id, tone_id) {
+    var _a;
+    const resp = await appGet("/reader/audio/timepoint/", {
+      item_id,
+      tone_id: tone_id.toString(),
+      req_type: "1"
+    });
+    const j = resp.json();
+    const results = [];
+    if (Array.isArray((_a = j == null ? void 0 : j.data) == null ? void 0 : _a.time_points)) {
+      for (let i2 of j.data.time_points) {
+        results.push({
+          startms: i2.start_time,
+          endms: i2.end_time,
+          startidx: i2.start_para,
+          endidx: i2.end_para,
+          is_title: i2.start_para === 1e4
+        });
+      }
+    }
+    return results;
+  }
+  function asBytes(value) {
+    if (value instanceof Uint8Array) {
+      return new Uint8Array(value);
+    }
+    return new Uint8Array(value);
+  }
+  function concatBytes(...arrays) {
+    const length = arrays.reduce((sum, array) => sum + array.byteLength, 0);
+    const result = new Uint8Array(length);
+    let offset = 0;
+    for (const array of arrays) {
+      result.set(array, offset);
+      offset += array.byteLength;
+    }
+    return result;
+  }
+  function ascii(text) {
+    const result = new Uint8Array(text.length);
+    for (let i2 = 0; i2 < text.length; i2++) {
+      result[i2] = text.charCodeAt(i2) & 255;
+    }
+    return result;
+  }
+  function hexToBytes(text) {
+    const hex2 = text.replace(/\s+/g, "");
+    if (!/^[0-9a-fA-F]*$/.test(hex2) || hex2.length % 2 !== 0) {
+      throw new Error("无效的十六进制数据");
+    }
+    const result = new Uint8Array(hex2.length / 2);
+    for (let i2 = 0; i2 < result.length; i2++) {
+      result[i2] = parseInt(hex2.slice(i2 * 2, i2 * 2 + 2), 16);
+    }
+    return result;
+  }
+  function uintBytes(value) {
+    if (!Number.isSafeInteger(value) || value < 0) {
+      throw new Error(`无效的无符号整数: ${value}`);
+    }
+    if (value === 0) return new Uint8Array([0]);
+    const result = [];
+    let current = value;
+    while (current > 0) {
+      result.unshift(current & 255);
+      current = Math.floor(current / 256);
+    }
+    return new Uint8Array(result);
+  }
+  function be16(value) {
+    const result = new Uint8Array(2);
+    new DataView(result.buffer).setUint16(0, value);
+    return result;
+  }
+  function be32(value) {
+    const result = new Uint8Array(4);
+    new DataView(result.buffer).setUint32(0, value >>> 0);
+    return result;
+  }
+  function be64(value) {
+    const result = new Uint8Array(8);
+    new DataView(result.buffer).setBigUint64(0, BigInt(value));
+    return result;
+  }
+  function findBytes(buffer, fourcc, from = 0, to = buffer.length - 4) {
+    if (fourcc.length !== 4) throw new Error(`fourcc 必须是 4 个字符: ${fourcc}`);
+    const c0 = fourcc.charCodeAt(0);
+    const c1 = fourcc.charCodeAt(1);
+    const c2 = fourcc.charCodeAt(2);
+    const c3 = fourcc.charCodeAt(3);
+    for (let i2 = from; i2 <= to; i2++) {
+      if (buffer[i2] === c0 && buffer[i2 + 1] === c1 && buffer[i2 + 2] === c2 && buffer[i2 + 3] === c3) return i2;
+    }
+    return -1;
+  }
+  function strBytes(text) {
+    return new TextEncoder().encode(text);
+  }
+  function readFourcc(buffer, offset) {
+    return String.fromCharCode(
+      buffer[offset] ?? 0,
+      buffer[offset + 1] ?? 0,
+      buffer[offset + 2] ?? 0,
+      buffer[offset + 3] ?? 0
+    );
+  }
+  const CONTAINERS = /* @__PURE__ */ new Set([
+    "moov",
+    "trak",
+    "mdia",
+    "minf",
+    "stbl",
+    "edts",
+    "dinf",
+    "udta",
+    "mvex",
+    "meta"
+  ]);
+  function readBox(buffer, offset, limit) {
+    if (offset + 8 > limit) return null;
+    const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+    const size32 = view.getUint32(offset);
+    const type = readFourcc(buffer, offset + 4);
+    let headerSize = 8;
+    let size;
+    if (size32 === 1) {
+      if (offset + 16 > limit) return null;
+      const extended = view.getBigUint64(offset + 8);
+      if (extended > BigInt(Number.MAX_SAFE_INTEGER)) {
+        throw new Error(`MP4 box 过大: ${type}`);
+      }
+      size = Number(extended);
+      headerSize = 16;
+    } else if (size32 === 0) {
+      size = limit - offset;
+    } else {
+      size = size32;
+    }
+    if (size < headerSize || offset + size > limit) return null;
+    return { type, offset, size, headerSize, end: offset + size };
+  }
+  function walkBoxes(buffer, start, end, visit, depth = 0) {
+    if (depth > 16) return;
+    let offset = start;
+    while (offset + 8 <= end) {
+      const box = readBox(buffer, offset, end);
+      if (!box) return;
+      visit(box);
+      if (CONTAINERS.has(box.type)) {
+        const childStart = box.offset + box.headerSize + (box.type === "meta" ? 4 : 0);
+        if (childStart < box.end) walkBoxes(buffer, childStart, box.end, visit, depth + 1);
+      }
+      offset = box.end;
+    }
+  }
+  function findBox(boxes, type) {
+    return boxes.find((box) => box.type === type);
+  }
+  function findMdatStart(buffer) {
+    let offset = 0;
+    while (offset + 8 <= buffer.length) {
+      const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
+      const size32 = view.getUint32(offset);
+      const type = readFourcc(buffer, offset + 4);
+      const headerSize = size32 === 1 ? 16 : 8;
+      if (type === "mdat") return offset + headerSize;
+      if (size32 === 0) return -1;
+      if (size32 === 1) {
+        if (offset + 16 > buffer.length) return -1;
+        const size = view.getBigUint64(offset + 8);
+        if (size > BigInt(Number.MAX_SAFE_INTEGER)) return -1;
+        offset += Number(size);
+      } else {
+        offset += size32;
+      }
+    }
+    return -1;
+  }
+  function parseSampleSizes(box, view) {
+    if (box.offset + 20 > box.end) throw new Error("stsz box 不完整");
+    const sampleSize = view.getUint32(box.offset + 12);
+    const count = view.getUint32(box.offset + 16);
+    const sizes = new Uint32Array(count);
+    if (sampleSize !== 0) {
+      sizes.fill(sampleSize);
+      return sizes;
+    }
+    if (box.offset + 20 + count * 4 > box.end) throw new Error("stsz 采样表不完整");
+    for (let i2 = 0; i2 < count; i2++) sizes[i2] = view.getUint32(box.offset + 20 + i2 * 4);
+    return sizes;
+  }
+  function parseDurations(box, sampleCount, view) {
+    if (box.offset + 16 > box.end) throw new Error("stts box 不完整");
+    const entryCount = view.getUint32(box.offset + 12);
+    const durations = new Uint32Array(sampleCount);
+    let index = 0;
+    for (let i2 = 0; i2 < entryCount; i2++) {
+      const offset = box.offset + 16 + i2 * 8;
+      if (offset + 8 > box.end) throw new Error("stts 采样表不完整");
+      const count = view.getUint32(offset);
+      const duration = view.getUint32(offset + 4);
+      for (let j = 0; j < count && index < sampleCount; j++) durations[index++] = duration;
+    }
+    if (index !== sampleCount) throw new Error(`stts 采样数不一致: ${index}/${sampleCount}`);
+    return durations;
+  }
+  function parseIvs(box, sampleCount, view) {
+    if (box.offset + 16 > box.end) throw new Error("senc box 不完整");
+    const flags = view.getUint32(box.offset + 8) & 16777215;
+    if ((flags & 2) !== 0) throw new Error("暂不支持带 subsample encryption 的音频");
+    const count = view.getUint32(box.offset + 12);
+    if (count !== sampleCount) throw new Error(`senc 采样数不一致: ${count}/${sampleCount}`);
+    const dataStart = box.offset + 16;
+    const dataLength = box.end - dataStart;
+    if (count === 0 || dataLength % count !== 0) throw new Error("senc IV 表不完整");
+    const ivLength = dataLength / count;
+    if (ivLength !== 8 && ivLength !== 16) throw new Error(`不支持的 CENC IV 长度: ${ivLength}`);
+    return asBytes(new Uint8Array(view.buffer, view.byteOffset + dataStart, dataLength));
+  }
+  function parseTimescale(box, view) {
+    if (box.offset + 24 > box.end) throw new Error("mdhd box 不完整");
+    const version2 = view.getUint8(box.offset + 8);
+    const offset = version2 === 1 ? box.offset + 28 : box.offset + 20;
+    if (offset + 4 > box.end) throw new Error("mdhd timescale 缺失");
+    const timescale = view.getUint32(offset);
+    if (timescale === 0) throw new Error("MP4 timescale 为 0");
+    return timescale;
+  }
+  function parseCodec(buffer, mdatStart) {
+    const end = Math.max(0, Math.min(mdatStart - 1, buffer.length - 4));
+    const dOps = findBytes(buffer, "dOps", 0, end);
+    if (dOps >= 0) {
+      const channels2 = buffer[dOps + 5] ?? 1;
+      const preSkip = (buffer[dOps + 6] ?? 0) << 8 | (buffer[dOps + 7] ?? 0);
+      return { codec: "opus", channels: channels2, preSkip };
+    }
+    const encodedEntry = findBytes(buffer, "enca", 0, end);
+    const plainEntry = findBytes(buffer, "mp4a", 0, end);
+    const entryType = encodedEntry >= 0 ? encodedEntry : plainEntry;
+    const channels = entryType >= 0 && entryType + 22 <= buffer.length ? new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength).getUint16(entryType + 20) : 1;
+    if (findBytes(buffer, "dfLa", 0, end) >= 0) {
+      return { codec: "flac", channels: channels || 1, preSkip: 0 };
+    }
+    if (entryType >= 0) {
+      return { codec: "aac", channels: channels || 1, preSkip: 0 };
+    }
+    throw new Error("未识别的音频编码（需要 Opus、AAC 或 FLAC）");
+  }
+  function parseCencMetadata(head) {
+    const mdatStart = findMdatStart(head);
+    if (mdatStart < 0) throw new Error("未找到 mdat，MP4 头可能尚未拉完整");
+    const boxes = [];
+    walkBoxes(head, 0, Math.min(mdatStart - 8, head.length), (box) => boxes.push(box));
+    const stsz = findBox(boxes, "stsz");
+    const stts = findBox(boxes, "stts");
+    const senc = findBox(boxes, "senc");
+    const mdhd = findBox(boxes, "mdhd");
+    if (!stsz || !stts || !senc || !mdhd) {
+      throw new Error("CENC MP4 头缺少 stsz/stts/senc/mdhd");
+    }
+    const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
+    const sizes = parseSampleSizes(stsz, view);
+    const durations = parseDurations(stts, sizes.length, view);
+    const ivs = parseIvs(senc, sizes.length, view);
+    const timescale = parseTimescale(mdhd, view);
+    const codec = parseCodec(head, mdatStart);
+    const offsets = new Float64Array(sizes.length + 1);
+    for (let i2 = 0; i2 < sizes.length; i2++) {
+      offsets[i2 + 1] = offsets[i2] + sizes[i2];
+      if (!Number.isSafeInteger(offsets[i2 + 1])) throw new Error("音频采样数据超过 JavaScript 安全整数范围");
+    }
+    let totalTicks = 0;
+    for (const duration of durations) {
+      totalTicks += duration;
+      if (!Number.isSafeInteger(totalTicks)) throw new Error("音频总时长超过 JavaScript 安全整数范围");
+    }
+    return {
+      ...codec,
+      sampleCount: sizes.length,
+      sizes,
+      ivs,
+      durations,
+      timescale,
+      mdatStart,
+      offsets,
+      totalTicks
+    };
+  }
+  function cencIvSize(meta) {
+    return meta.ivs.length / meta.sampleCount;
+  }
+  function normalizeCencKey(value) {
+    if (typeof value === "string") {
+      const bytes2 = hexToBytes(value);
+      if (bytes2.length !== 16) throw new Error("AES-128 key 必须是 32 位 hex");
+      return bytes2;
+    }
+    const bytes = asBytes(value);
+    if (bytes.length !== 16) throw new Error("AES-128 key 必须是 16 字节");
+    return bytes.slice();
+  }
+  async function importCencKey(value) {
+    return getSubtle().importKey(
+      "raw",
+      normalizeCencKey(value),
+      { name: "AES-CTR" },
+      false,
+      ["decrypt"]
+    );
+  }
+  function makeCencCounter(iv, counterStart) {
+    if (iv.length !== 8 && iv.length !== 16) throw new Error(`无效的 CENC IV 长度: ${iv.length}`);
+    const counter = new Uint8Array(16);
+    counter.set(iv);
+    if (counterStart === 1) counter[15] = 1;
+    return counter;
+  }
+  async function decryptCencSample(key, iv, ciphertext, counterStart) {
+    const data = asBytes(ciphertext);
+    const plain = await getSubtle().decrypt(
+      { name: "AES-CTR", counter: makeCencCounter(iv, counterStart), length: 64 },
+      key,
+      data
+    );
+    return new Uint8Array(plain);
+  }
+  function ebmlVint(value, length) {
+    if (!Number.isSafeInteger(value) || value < 0 || length < 1 || length > 8) {
+      throw new Error(`无效的 EBML VINT: ${value}`);
+    }
+    const result = new Uint8Array(length);
+    result[0] = 128 >> length - 1;
+    let current = value;
+    for (let i2 = length - 1; i2 > 0; i2--) {
+      result[i2] = current & 255;
+      current = Math.floor(current / 256);
+    }
+    const max = Math.pow(2, 7 * length);
+    if (current >= max) throw new Error(`EBML VINT 溢出: ${value}`);
+    result[0] |= current;
+    return result;
+  }
+  function ebmlSize(value) {
+    for (let length = 1; length <= 8; length++) {
+      if (value < Math.pow(2, 7 * length) - 1) return ebmlVint(value, length);
+    }
+    throw new Error(`EBML size 过大: ${value}`);
+  }
+  function ebmlElement(id, payload) {
+    return concatBytes(hexToBytes(id), ebmlSize(payload.length), payload);
+  }
+  function mp4Box(type, payload) {
+    return concatBytes(be32(8 + payload.length), ascii(type), payload);
+  }
+  function matrixIdentity() {
+    const matrix = new Uint8Array(36);
+    const view = new DataView(matrix.buffer);
+    view.setUint32(0, 65536);
+    view.setUint32(16, 65536);
+    view.setUint32(32, 1073741824);
+    return matrix;
+  }
+  function signedBe16(value) {
+    const result = new Uint8Array(2);
+    new DataView(result.buffer).setInt16(0, value);
+    return result;
+  }
+  function buildWebmInit(channels, preSkip, durationSeconds) {
+    const ebml = ebmlElement("1A45DFA3", concatBytes(
+      ebmlElement("4286", hexToBytes("01")),
+      ebmlElement("42F7", hexToBytes("01")),
+      ebmlElement("42F2", hexToBytes("04")),
+      ebmlElement("42F3", hexToBytes("08")),
+      ebmlElement("4282", strBytes("webm")),
+      ebmlElement("4287", hexToBytes("04")),
+      ebmlElement("4285", hexToBytes("02"))
+    ));
+    const codecDelayNs = Math.round(preSkip * 1e9 / 48e3);
+    const duration = new Uint8Array(8);
+    new DataView(duration.buffer).setFloat64(0, durationSeconds, false);
+    const info = ebmlElement("1549A966", concatBytes(
+      ebmlElement("2AD7B1", uintBytes(1e6)),
+      ebmlElement("4489", duration),
+      ebmlElement("4D80", strBytes("clearKeyStreamer")),
+      ebmlElement("5741", strBytes("clearKeyStreamer"))
+    ));
+    const sampleRate = new Uint8Array(4);
+    new DataView(sampleRate.buffer).setFloat32(0, 48e3, false);
+    const audio2 = ebmlElement("E1", concatBytes(
+      ebmlElement("B5", sampleRate),
+      ebmlElement("9F", uintBytes(channels))
+    ));
+    const track = ebmlElement("AE", concatBytes(
+      ebmlElement("D7", hexToBytes("01")),
+      ebmlElement("73C5", uintBytes(1)),
+      ebmlElement("83", hexToBytes("02")),
+      ebmlElement("86", strBytes("A_OPUS")),
+      ebmlElement("63A2", buildOpusHead(channels, preSkip)),
+      ebmlElement("56AA", uintBytes(codecDelayNs)),
+      ebmlElement("56BB", uintBytes(8e7)),
+      audio2
+    ));
+    const tracks = ebmlElement("1654AE6B", track);
+    return concatBytes(ebml, hexToBytes("18538067"), hexToBytes("01FFFFFFFFFFFFFF"), info, tracks);
+  }
+  function buildOpusHead(channels, preSkip) {
+    const head = new Uint8Array(19);
+    head.set([79, 112, 117, 115, 72, 101, 97, 100], 0);
+    const view = new DataView(head.buffer);
+    head[8] = 1;
+    head[9] = channels;
+    view.setUint16(10, preSkip, true);
+    view.setUint32(12, 48e3, true);
+    view.setInt16(16, 0, true);
+    head[18] = 0;
+    return head;
+  }
+  function buildWebmCluster(baseMs, relativeMs, packets) {
+    if (relativeMs.length !== packets.length) throw new Error("WebM 时间戳和采样数不一致");
+    const blocks = [];
+    for (let i2 = 0; i2 < packets.length; i2++) {
+      const relative = relativeMs[i2];
+      if (relative === void 0 || relative < -32768 || relative > 32767) {
+        throw new Error(`WebM 相对时间戳超出 Int16: ${relative}`);
+      }
+      const trackAndFlags = new Uint8Array([129, 128]);
+      blocks.push(ebmlElement("A3", concatBytes(
+        trackAndFlags.slice(0, 1),
+        signedBe16(relative),
+        trackAndFlags.slice(1),
+        packets[i2]
+      )));
+    }
+    return ebmlElement("1F43B675", concatBytes(
+      ebmlElement("E7", uintBytes(baseMs)),
+      concatBytes(...blocks)
+    ));
+  }
+  function replaceFourcc(buffer, offset, type) {
+    buffer.set(ascii(type), offset);
+  }
+  function extractSampleEntry(head, mdatStart) {
+    const encoded = findBytes(head, "enca", 0, mdatStart - 1);
+    const plain = findBytes(head, "mp4a", 0, mdatStart - 1);
+    const typeOffset = encoded >= 0 ? encoded : plain;
+    if (typeOffset < 4) throw new Error("未找到 AAC 音频采样入口");
+    const entryOffset = typeOffset - 4;
+    const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
+    const size = view.getUint32(entryOffset);
+    if (size < 8 || entryOffset + size > head.length) throw new Error("AAC 采样入口不完整");
+    const entry = new Uint8Array(head.slice(entryOffset, entryOffset + size));
+    const enca = findBytes(entry, "enca", 0);
+    if (enca >= 0) replaceFourcc(entry, enca, "mp4a");
+    const sinf = findBytes(entry, "sinf", 8);
+    if (sinf >= 0) replaceFourcc(entry, sinf, "free");
+    return entry;
+  }
+  function extractFlacEntry(head, mdatStart) {
+    const encoded = findBytes(head, "enca", 0, mdatStart - 1);
+    if (encoded < 4) throw new Error("未找到 FLAC 加密采样入口");
+    const entryOffset = encoded - 4;
+    const view = new DataView(head.buffer, head.byteOffset, head.byteLength);
+    const size = view.getUint32(entryOffset);
+    if (size < 8 || entryOffset + size > head.length) throw new Error("FLAC 采样入口不完整");
+    const entry = new Uint8Array(head.slice(entryOffset, entryOffset + size));
+    replaceFourcc(entry, encoded - entryOffset, "fLaC");
+    const sinf = findBytes(entry, "sinf", 8);
+    if (sinf >= 0) replaceFourcc(entry, sinf, "free");
+    return entry;
+  }
+  function buildMp4Init(sampleEntry, timescale, totalTicks) {
+    const totalSeconds = totalTicks / timescale;
+    const matrix = matrixIdentity();
+    const mvhd = mp4Box("mvhd", concatBytes(
+      be32(0),
+      be32(0),
+      be32(0),
+      be32(1e3),
+      be32(Math.round(totalSeconds * 1e3)),
+      be32(65536),
+      be16(256),
+      be16(0),
+      new Uint8Array(8),
+      matrix,
+      new Uint8Array(24),
+      be32(2)
+    ));
+    const tkhd = mp4Box("tkhd", concatBytes(
+      be32(7),
+      be32(0),
+      be32(0),
+      be32(1),
+      be32(0),
+      be32(0),
+      new Uint8Array(8),
+      be16(0),
+      be16(0),
+      be16(256),
+      be16(0),
+      matrix,
+      be32(0),
+      be32(0)
+    ));
+    const mdhd = mp4Box("mdhd", concatBytes(
+      be32(0),
+      be32(0),
+      be32(0),
+      be32(timescale),
+      be32(totalTicks),
+      be16(21956),
+      be16(0)
+    ));
+    const hdlr = mp4Box("hdlr", concatBytes(
+      be32(0),
+      be32(0),
+      ascii("soun"),
+      new Uint8Array(12)
+    ));
+    const smhd = mp4Box("smhd", concatBytes(be32(0), be16(0), be16(0)));
+    const url = mp4Box("url ", be32(1));
+    const dref = mp4Box("dref", concatBytes(be32(0), be32(1), url));
+    const dinf = mp4Box("dinf", dref);
+    const stsd = mp4Box("stsd", concatBytes(be32(0), be32(1), sampleEntry));
+    const stts = mp4Box("stts", concatBytes(be32(0), be32(0)));
+    const stsc = mp4Box("stsc", concatBytes(be32(0), be32(0)));
+    const stsz = mp4Box("stsz", concatBytes(be32(0), be32(0), be32(0)));
+    const stco = mp4Box("stco", concatBytes(be32(0), be32(0)));
+    const stbl = mp4Box("stbl", concatBytes(stsd, stts, stsc, stsz, stco));
+    const minf = mp4Box("minf", concatBytes(smhd, dinf, stbl));
+    const mdia = mp4Box("mdia", concatBytes(mdhd, hdlr, minf));
+    const trak = mp4Box("trak", concatBytes(tkhd, mdia));
+    const trex = mp4Box("trex", concatBytes(be32(0), be32(1), be32(1), be32(0), be32(0), be32(0)));
+    const mvex = mp4Box("mvex", trex);
+    const moov = mp4Box("moov", concatBytes(mvhd, trak, mvex));
+    const ftyp = mp4Box("ftyp", concatBytes(ascii("isom"), be32(512), ascii("isomiso2mp41dash")));
+    return concatBytes(ftyp, moov);
+  }
+  function buildMp4Segment(baseDecodeTick, samples, sequence) {
+    if (samples.length === 0) throw new Error("MP4 segment 不能没有采样");
+    const sampleTable = samples.flatMap((sample) => [be32(sample.duration), be32(sample.data.length)]);
+    const mfhd = mp4Box("mfhd", concatBytes(be32(0), be32(sequence)));
+    const tfhd = mp4Box("tfhd", concatBytes(be32(131072), be32(1)));
+    const tfdt = mp4Box("tfdt", concatBytes(be32(16777216), be64(baseDecodeTick)));
+    const makeTrun = (offset) => mp4Box("trun", concatBytes(
+      be32(769),
+      be32(samples.length),
+      be32(offset),
+      concatBytes(...sampleTable)
+    ));
+    const makeMoof = (offset) => mp4Box("moof", concatBytes(
+      mfhd,
+      mp4Box("traf", concatBytes(tfhd, tfdt, makeTrun(offset)))
+    ));
+    const mediaPayload = concatBytes(...samples.map((sample) => sample.data));
+    const dataOffset = makeMoof(0).length + 8;
+    return concatBytes(makeMoof(dataOffset), mp4Box("mdat", mediaPayload));
+  }
+  function codecMime(codec) {
+    if (codec === "opus") return 'audio/webm;codecs="opus"';
+    if (codec === "flac") return 'audio/mp4; codecs="fLaC"';
+    return 'audio/mp4; codecs="mp4a.40.2"';
+  }
+  function initSegment(meta, sampleEntry) {
+    if (meta.codec === "opus") {
+      const playableTicks = Math.max(0, meta.totalTicks - meta.preSkip);
+      return buildWebmInit(meta.channels, meta.preSkip, playableTicks / meta.timescale);
+    }
+    if (!sampleEntry) throw new Error("MP4 编码缺少 sample entry");
+    return buildMp4Init(sampleEntry, meta.timescale, meta.totalTicks);
+  }
+  const DEFAULT_HEAD_BYTES = 512 * 1024;
+  const DEFAULT_MAX_HEAD_BYTES = 8 * 1024 * 1024;
+  const DEFAULT_SEGMENT_SECONDS = 15;
+  const MAX_WEBM_SEGMENT_SECONDS = 30;
+  const DEFAULT_MAX_BUFFER_AHEAD = 40;
+  const DEFAULT_KEEP_BEHIND = 10;
+  const DEFAULT_DECRYPT_CONCURRENCY = 24;
+  function asError(value) {
+    return value instanceof Error ? value : new Error(String(value));
+  }
+  function abortError$1() {
+    return new DOMException("播放器会话已取消", "AbortError");
+  }
+  function isAbort(value) {
+    return value instanceof DOMException && value.name === "AbortError";
+  }
+  function waitForSourceBufferIdle(sourceBuffer, signal) {
+    if (!sourceBuffer.updating) return Promise.resolve();
+    return new Promise((resolve) => {
+      const done = () => {
+        sourceBuffer.removeEventListener("updateend", done);
+        sourceBuffer.removeEventListener("abort", done);
+        sourceBuffer.removeEventListener("error", done);
+        signal.removeEventListener("abort", done);
+        resolve();
+      };
+      sourceBuffer.addEventListener("updateend", done);
+      sourceBuffer.addEventListener("abort", done);
+      sourceBuffer.addEventListener("error", done);
+      signal.addEventListener("abort", done, { once: true });
+    });
+  }
+  function describeMediaError(audio2) {
+    const error = audio2.error;
+    if (!error) return "";
+    const names = {
+      1: "MEDIA_ERR_ABORTED",
+      2: "MEDIA_ERR_NETWORK",
+      3: "MEDIA_ERR_DECODE（数据不是合法音频，多半在传输中被破坏）",
+      4: "MEDIA_ERR_SRC_NOT_SUPPORTED"
+    };
+    const name2 = names[error.code] ?? `code ${error.code}`;
+    return `：${name2}${error.message ? ` - ${error.message}` : ""}`;
+  }
+  function validatePositive(value, fallback, name2) {
+    const result = value ?? fallback;
+    if (!Number.isFinite(result) || result <= 0) throw new Error(`${name2} 必须是正数`);
+    return result;
+  }
+  async function mapLimit(items, limit, worker) {
+    const results = new Array(items.length);
+    let next = 0;
+    async function consume() {
+      while (next < items.length) {
+        const index = next++;
+        results[index] = await worker(items[index]);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => consume()));
+    return results;
+  }
+  class SequentialByteStream {
+    constructor(initial = new Uint8Array(), reader = null, openReader = null) {
+      __publicField(this, "chunks", []);
+      __publicField(this, "chunkOffset", 0);
+      __publicField(this, "available", 0);
+      __publicField(this, "reader");
+      __publicField(this, "openReader");
+      __publicField(this, "eof", false);
+      if (initial.length > 0) {
+        const copy = new Uint8Array(initial);
+        this.chunks.push(copy);
+        this.available = copy.length;
+      }
+      this.reader = reader;
+      this.openReader = openReader;
+    }
+    /** 至少缓存 length 字节；流先结束时返回 false。 */
+    async bufferAtLeast(length) {
+      while (this.available < length && !this.eof) await this.pull();
+      return this.available >= length;
+    }
+    /** 复制当前全部未消费数据，不移动读取位置。 */
+    snapshot() {
+      const result = new Uint8Array(this.available);
+      let output = 0;
+      for (let i2 = 0; i2 < this.chunks.length; i2++) {
+        const chunk2 = this.chunks[i2];
+        const start = i2 === 0 ? this.chunkOffset : 0;
+        result.set(chunk2.subarray(start), output);
+        output += chunk2.length - start;
+      }
+      return result;
+    }
+    async skip(length) {
+      await this.readExactly(length);
+    }
+    async readExactly(length) {
+      if (!Number.isSafeInteger(length) || length < 0) {
+        throw new Error(`无效的流读取长度: ${length}`);
+      }
+      if (length === 0) return new Uint8Array();
+      if (!await this.bufferAtLeast(length)) {
+        throw new Error(`音频流提前结束（还需 ${length - this.available} 字节）`);
+      }
+      const result = new Uint8Array(length);
+      let output = 0;
+      while (output < length) {
+        const chunk2 = this.chunks[0];
+        const take = Math.min(length - output, chunk2.length - this.chunkOffset);
+        result.set(chunk2.subarray(this.chunkOffset, this.chunkOffset + take), output);
+        output += take;
+        this.chunkOffset += take;
+        this.available -= take;
+        if (this.chunkOffset === chunk2.length) {
+          this.chunks.shift();
+          this.chunkOffset = 0;
+        }
+      }
+      return result;
+    }
+    async cancel() {
+      var _a;
+      this.eof = true;
+      try {
+        await ((_a = this.reader) == null ? void 0 : _a.cancel());
+      } catch {
+      }
+      this.reader = null;
+    }
+    async pull() {
+      if (!this.reader && this.openReader) this.reader = await this.openReader();
+      if (!this.reader) {
+        this.eof = true;
+        return;
+      }
+      const { value, done } = await this.reader.read();
+      if (done) {
+        this.eof = true;
+        return;
+      }
+      if (value == null ? void 0 : value.length) {
+        const copy = new Uint8Array(value);
+        this.chunks.push(copy);
+        this.available += copy.length;
+      }
+    }
+  }
+  class CencAudioPlayer {
+    constructor(audio2, options = {}) {
+      __publicField(this, "audio");
+      __publicField(this, "options");
+      __publicField(this, "state", "idle");
+      __publicField(this, "session", 0);
+      __publicField(this, "streamToken", 0);
+      __publicField(this, "seekToken", 0);
+      __publicField(this, "sessionController", null);
+      __publicField(this, "streamController", null);
+      __publicField(this, "sourceBuffer", null);
+      __publicField(this, "mediaSource", null);
+      __publicField(this, "objectUrl", null);
+      __publicField(this, "sourceBufferChain", Promise.resolve());
+      __publicField(this, "context", null);
+      __publicField(this, "info", null);
+      __publicField(this, "autoplay", false);
+      __publicField(this, "segmentSequence", 0);
+      __publicField(this, "onSeeking", () => {
+        const context = this.context;
+        if (!context || this.state === "destroyed" || this.session === 0) return;
+        if (this.audio.error) return;
+        const target = this.audio.currentTime;
+        if (!Number.isFinite(target) || this.isTimeBuffered(target)) return;
+        const wasPlaying = !this.audio.paused;
+        void this.restartAt(target, wasPlaying);
+      });
+      __publicField(this, "onPlay", () => {
+        if (this.context && this.state !== "destroyed") this.emitState("playing");
+      });
+      __publicField(this, "onPause", () => {
+        if (this.context && this.state === "playing" && !this.audio.ended) this.emitState("paused");
+      });
+      __publicField(this, "onEnded", () => {
+        if (this.context && this.state !== "destroyed") this.emitState("ended");
+      });
+      this.audio = audio2;
+      const fetcher = (options.fetch ?? fetch$1).bind(unsafeWindow);
+      this.options = {
+        headBytes: validatePositive(options.headBytes, DEFAULT_HEAD_BYTES, "headBytes"),
+        maxHeadBytes: validatePositive(options.maxHeadBytes, DEFAULT_MAX_HEAD_BYTES, "maxHeadBytes"),
+        segmentSeconds: validatePositive(options.segmentSeconds, DEFAULT_SEGMENT_SECONDS, "segmentSeconds"),
+        maxBufferAheadSeconds: validatePositive(options.maxBufferAheadSeconds, DEFAULT_MAX_BUFFER_AHEAD, "maxBufferAheadSeconds"),
+        keepBehindSeconds: validatePositive(options.keepBehindSeconds, DEFAULT_KEEP_BEHIND, "keepBehindSeconds"),
+        decryptConcurrency: Math.max(1, Math.floor(validatePositive(options.decryptConcurrency, DEFAULT_DECRYPT_CONCURRENCY, "decryptConcurrency"))),
+        onStateChange: options.onStateChange,
+        onProgress: options.onProgress,
+        onMessage: options.onMessage,
+        // config.fetch 保存的是页面 fetch 的原始引用，避免被字节 SDK 改写。
+        fetch: fetcher
+      };
+      this.audio.addEventListener("seeking", this.onSeeking);
+      this.audio.addEventListener("play", this.onPlay);
+      this.audio.addEventListener("pause", this.onPause);
+      this.audio.addEventListener("ended", this.onEnded);
+    }
+    get currentState() {
+      return this.state;
+    }
+    get mediaInfo() {
+      return this.info;
+    }
+    get element() {
+      return this.audio;
+    }
+    /** 加载并开始后台缓冲；autoplay 只表示首次缓冲后尝试调用 audio.play。 */
+    async load(source, autoplay = false) {
+      this.ensureAlive();
+      const session = this.beginSession();
+      this.autoplay = autoplay;
+      this.emitState("loading");
+      let initialStream = null;
+      try {
+        const url = this.validateUrl(source.url);
+        this.streamController = new AbortController();
+        initialStream = this.createNetworkStream(url, 0, this.streamController.signal);
+        let { head, meta } = await this.parseHeadFromStream(initialStream, session);
+        this.assertSession(session);
+        const key = await importCencKey(source.key);
+        this.assertSession(session);
+        let counterStart = 0;
+        if (meta.codec === "opus") {
+          const probeEnd = meta.mdatStart + meta.offsets[Math.min(6, meta.sampleCount)];
+          if (head.length < probeEnd) {
+            await initialStream.bufferAtLeast(probeEnd);
+            head = initialStream.snapshot();
+          }
+          counterStart = await this.detectCounterStart(meta, head, key);
+        }
+        this.assertSession(session);
+        const sampleEntry = meta.codec === "aac" ? extractSampleEntry(head, meta.mdatStart) : meta.codec === "flac" ? extractFlacEntry(head, meta.mdatStart) : void 0;
+        const mime = codecMime(meta.codec);
+        const ctor = this.mediaSourceConstructor();
+        if (!ctor.isTypeSupported(mime)) throw new Error(`浏览器不支持 MSE 音频格式: ${mime}`);
+        const mediaSource = new ctor();
+        this.mediaSource = mediaSource;
+        this.objectUrl = unsafeWindow.URL.createObjectURL(mediaSource);
+        const opened = this.waitForSourceOpen(mediaSource, session);
+        this.audio.src = this.objectUrl;
+        await opened;
+        this.assertSession(session);
+        this.sourceBuffer = mediaSource.addSourceBuffer(mime);
+        this.segmentSequence = 0;
+        const init2 = initSegment(meta, sampleEntry);
+        this.emitMessage(`追加 init 段 ${init2.byteLength} 字节 (${mime})`, "info");
+        await this.enqueueSourceBuffer(session, (sourceBuffer) => {
+          sourceBuffer.appendBuffer(this.toPageBuffer(init2));
+        });
+        this.assertSession(session);
+        const ticks = new Float64Array(meta.sampleCount + 1);
+        for (let i2 = 0; i2 < meta.sampleCount; i2++) {
+          ticks[i2 + 1] = ticks[i2] + meta.durations[i2];
+        }
+        const durationSeconds = meta.totalTicks / meta.timescale;
+        const samplesPerSecond = meta.sampleCount / durationSeconds;
+        const segmentSeconds = meta.codec === "opus" ? Math.min(this.options.segmentSeconds, MAX_WEBM_SEGMENT_SECONDS) : this.options.segmentSeconds;
+        this.context = {
+          url,
+          head,
+          meta,
+          key,
+          counterStart,
+          ticks,
+          samplesPerSecond,
+          samplesPerSegment: Math.max(1, Math.round(samplesPerSecond * segmentSeconds))
+        };
+        this.info = {
+          codec: meta.codec,
+          sampleCount: meta.sampleCount,
+          durationSeconds,
+          timescale: meta.timescale,
+          channels: meta.channels,
+          encryptedBytes: meta.offsets[meta.sampleCount]
+        };
+        await initialStream.skip(meta.mdatStart);
+        this.assertSession(session);
+        this.emitState("ready");
+        this.startStream(0, initialStream);
+        initialStream = null;
+        return this.info;
+      } catch (error) {
+        void (initialStream == null ? void 0 : initialStream.cancel());
+        if (this.isCurrent(session) && !isAbort(error)) {
+          this.emitMessage(asError(error).message, "error");
+          void this.reportAppendFailure();
+          this.emitState("error");
+        }
+        throw error;
+      }
+    }
+    /** load(..., true) 的便捷形式。 */
+    start(source) {
+      return this.load(source, true);
+    }
+    play() {
+      this.ensureAlive();
+      return this.audio.play().then(() => void 0);
+    }
+    pause() {
+      this.audio.pause();
+    }
+    /** 停止当前流并释放 MSE URL，但保留播放器实例以便再次 load。 */
+    stop() {
+      if (this.state === "destroyed") return;
+      this.beginSession();
+      this.emitState("idle");
+    }
+    destroy() {
+      if (this.state === "destroyed") return;
+      this.beginSession();
+      this.audio.removeEventListener("seeking", this.onSeeking);
+      this.audio.removeEventListener("play", this.onPlay);
+      this.audio.removeEventListener("pause", this.onPause);
+      this.audio.removeEventListener("ended", this.onEnded);
+      this.emitState("destroyed");
+    }
+    ensureAlive() {
+      if (this.state === "destroyed") throw new Error("播放器已销毁");
+    }
+    beginSession() {
+      var _a, _b;
+      this.session++;
+      this.streamToken++;
+      this.seekToken++;
+      (_a = this.sessionController) == null ? void 0 : _a.abort();
+      (_b = this.streamController) == null ? void 0 : _b.abort();
+      this.sessionController = new AbortController();
+      this.streamController = null;
+      this.context = null;
+      this.info = null;
+      this.autoplay = false;
+      this.sourceBuffer = null;
+      this.mediaSource = null;
+      this.sourceBufferChain = Promise.resolve();
+      this.audio.pause();
+      if (this.audio.src) {
+        this.audio.removeAttribute("src");
+        this.audio.load();
+      }
+      if (this.objectUrl) {
+        unsafeWindow.URL.revokeObjectURL(this.objectUrl);
+        this.objectUrl = null;
+      }
+      return this.session;
+    }
+    validateUrl(raw) {
+      const url = raw.trim();
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        throw new Error("音频 URL 必须是 HTTP(S) 地址");
+      }
+      return parsed.toString();
+    }
+    mediaSourceConstructor() {
+      const win2 = unsafeWindow;
+      const ctor = win2.MediaSource ?? globalThis.MediaSource;
+      if (!ctor) throw new Error("当前浏览器没有 MediaSource 支持");
+      return ctor;
+    }
+    /**
+     * 把字节搬到页面 realm，再交给 appendBuffer。
+     *
+     * MediaSource 取自 unsafeWindow（页面 realm），而我们构造的 Uint8Array
+     * 属于用户脚本沙箱 realm。跨 realm 的 ArrayBuffer 传进 appendBuffer 会被拒，
+     * 表现是 SourceBuffer 立刻抛 error 事件、而 <audio>.error 仍是 null
+     * —— 只看报错完全看不出是 realm 问题。
+     *
+     * 页面 realm 没暴露 Uint8Array 时（少见）就原样返回，交给浏览器自己判断。
+     */
+    toPageBuffer(bytes) {
+      const win2 = unsafeWindow;
+      const PageUint8Array = win2.Uint8Array;
+      if (!PageUint8Array || PageUint8Array === Uint8Array) return bytes;
+      const copy = new PageUint8Array(bytes.byteLength);
+      copy.set(bytes);
+      return copy;
+    }
+    async parseHeadFromStream(stream, session) {
+      let size = Math.min(this.options.headBytes, this.options.maxHeadBytes);
+      let lastError = null;
+      while (size <= this.options.maxHeadBytes) {
+        const complete = await stream.bufferAtLeast(size);
+        this.assertSession(session);
+        const head = stream.snapshot();
+        try {
+          return { head, meta: parseCencMetadata(head) };
+        } catch (error) {
+          lastError = error;
+          const message = asError(error).message;
+          const incomplete = /未找到|不完整|缺少/.test(message);
+          if (!incomplete || !complete || size === this.options.maxHeadBytes) throw error;
+          size = Math.min(this.options.maxHeadBytes, size * 2);
+        }
+      }
+      throw lastError instanceof Error ? lastError : new Error("无法解析音频 MP4 头");
+    }
+    createNetworkStream(url, start, signal, initial = new Uint8Array()) {
+      return new SequentialByteStream(
+        initial,
+        null,
+        () => this.openAudioReader(url, start, signal)
+      );
+    }
+    /**
+     * 打开一条从指定字节一直到文件末尾的流。
+     * 所有 CDN 请求都明确禁止 Referer、Cookie；顺序播放期间只会打开一次。
+     */
+    async openAudioReader(url, start, signal) {
+      this.emitMessage(`打开音频流：bytes=${start}-`, "info");
+      const response = await this.options.fetch(url, {
+        method: "GET",
+        headers: { Range: `bytes=${start}-` },
+        credentials: "omit",
+        // 两项都设：policy 禁止浏览器生成 Referer，空 referrer 防止调用方 Request 继承。
+        referrer: "",
+        referrerPolicy: "no-referrer",
+        signal
+      });
+      if (!response.ok && response.status !== 206) {
+        throw new Error(`音频 CDN 请求失败(HTTP ${response.status})`);
+      }
+      if (start > 0 && response.status !== 206) {
+        throw new Error("音频 CDN 忽略了 Range，无法从拖动位置续流");
+      }
+      if (response.body) return response.body.getReader();
+      const bytes = await response.arrayBuffer();
+      const fallback = new Response(bytes).body;
+      if (!fallback) throw new Error("浏览器不支持流式读取 Response");
+      return fallback.getReader();
+    }
+    sessionSignal(session) {
+      this.assertSession(session);
+      return this.sessionController.signal;
+    }
+    assertSession(session) {
+      if (!this.isCurrent(session)) throw abortError$1();
+    }
+    isCurrent(session) {
+      var _a;
+      return this.session === session && !((_a = this.sessionController) == null ? void 0 : _a.signal.aborted);
+    }
+    async waitForSourceOpen(mediaSource, session) {
+      const signal = this.sessionSignal(session);
+      await new Promise((resolve, reject) => {
+        if (mediaSource.readyState === "open") {
+          resolve();
+          return;
+        }
+        const onOpen = () => {
+          cleanup();
+          resolve();
+        };
+        const onError = () => {
+          cleanup();
+          reject(new Error("MediaSource 打开失败"));
+        };
+        const onAbort = () => {
+          cleanup();
+          reject(abortError$1());
+        };
+        const cleanup = () => {
+          mediaSource.removeEventListener("sourceopen", onOpen);
+          mediaSource.removeEventListener("error", onError);
+          signal.removeEventListener("abort", onAbort);
+        };
+        mediaSource.addEventListener("sourceopen", onOpen, { once: true });
+        mediaSource.addEventListener("error", onError, { once: true });
+        signal.addEventListener("abort", onAbort, { once: true });
+      });
+    }
+    enqueueSourceBuffer(session, operation) {
+      const sourceBuffer = this.sourceBuffer;
+      if (!sourceBuffer) return Promise.reject(new Error("SourceBuffer 尚未创建"));
+      const signal = this.sessionSignal(session);
+      const run = async () => {
+        if (signal.aborted) throw abortError$1();
+        await waitForSourceBufferIdle(sourceBuffer, signal);
+        if (signal.aborted) throw abortError$1();
+        return new Promise((resolve, reject) => {
+          let settled = false;
+          const finish = (error) => {
+            if (settled) return;
+            settled = true;
+            sourceBuffer.removeEventListener("updateend", onUpdateEnd);
+            sourceBuffer.removeEventListener("error", onError);
+            signal.removeEventListener("abort", onAbort);
+            if (error) reject(error);
+            else resolve();
+          };
+          const onUpdateEnd = () => finish();
+          const onError = () => finish(new Error("SourceBuffer 更新失败"));
+          const onAbort = () => finish(abortError$1());
+          sourceBuffer.addEventListener("updateend", onUpdateEnd);
+          sourceBuffer.addEventListener("error", onError);
+          signal.addEventListener("abort", onAbort, { once: true });
+          try {
+            operation(sourceBuffer);
+          } catch (error) {
+            finish(asError(error));
+          }
+        });
+      };
+      const next = this.sourceBufferChain.catch(() => void 0).then(run);
+      this.sourceBufferChain = next;
+      return next;
+    }
+    startStream(startSample, existingStream) {
+      var _a;
+      const context = this.context;
+      if (!context || this.state === "destroyed") return;
+      if (!existingStream) {
+        (_a = this.streamController) == null ? void 0 : _a.abort();
+        this.streamController = new AbortController();
+      }
+      const controller = this.streamController;
+      if (!controller) return;
+      const token = ++this.streamToken;
+      void this.runStream(
+        context,
+        this.session,
+        token,
+        startSample,
+        controller.signal,
+        existingStream
+      );
+    }
+    async runStream(context, session, token, startSample, signal, existingStream) {
+      var _a;
+      let sample = startSample;
+      let first = true;
+      let stream = existingStream ?? null;
+      try {
+        stream ?? (stream = this.createSampleStream(context, startSample, signal));
+        while (this.isStreamCurrent(session, token, signal) && sample < context.meta.sampleCount) {
+          await this.waitForRoom(session, token, signal);
+          if (!this.isStreamCurrent(session, token, signal)) return;
+          const endSample = Math.min(context.meta.sampleCount, sample + context.samplesPerSegment);
+          const byteLength = context.meta.offsets[endSample] - context.meta.offsets[sample];
+          const encrypted = await stream.readExactly(byteLength);
+          if (!this.isStreamCurrent(session, token, signal)) return;
+          const plain = await this.decryptRange(context, encrypted, sample, endSample);
+          if (!this.isStreamCurrent(session, token, signal)) return;
+          const segment = context.meta.codec === "opus" ? buildWebmCluster(
+            Math.round(context.ticks[sample] * 1e3 / context.meta.timescale),
+            plain.map((_, index) => Math.round(
+              context.ticks[sample + index] * 1e3 / context.meta.timescale
+            ) - Math.round(context.ticks[sample] * 1e3 / context.meta.timescale)),
+            plain
+          ) : buildMp4Segment(
+            context.ticks[sample],
+            plain.map((data, index) => ({
+              data,
+              duration: context.meta.durations[sample + index]
+            })),
+            ++this.segmentSequence
+          );
+          await this.enqueueSourceBuffer(session, (sourceBuffer) => {
+            sourceBuffer.appendBuffer(this.toPageBuffer(segment));
+          });
+          if (first) {
+            const toc = (_a = plain[0]) == null ? void 0 : _a[0];
+            this.emitMessage(
+              `首段 samples=${sample}..${endSample} 密文${encrypted.byteLength}B 段长${segment.byteLength}B TOC=0x${(toc ?? 0).toString(16)}`,
+              "info"
+            );
+          }
+          if (!this.isStreamCurrent(session, token, signal)) return;
+          await this.evictBehind(session);
+          sample = endSample;
+          this.emitProgress({
+            processedSamples: sample,
+            totalSamples: context.meta.sampleCount,
+            percent: Math.round(sample / context.meta.sampleCount * 100),
+            bufferedAhead: this.bufferedAhead(),
+            durationSeconds: context.meta.totalTicks / context.meta.timescale
+          });
+          if (first && this.autoplay) {
+            first = false;
+            void this.audio.play().catch(() => {
+              this.emitMessage("自动播放被浏览器拦截，请点击音频控件播放", "warn");
+            });
+          } else {
+            first = false;
+          }
+        }
+        if (this.isStreamCurrent(session, token, signal)) {
+          await this.finishStream(session, sample);
+          this.emitMessage("音频已缓冲到结尾", "info");
+        }
+      } catch (error) {
+        if (this.isStreamCurrent(session, token, signal) && !isAbort(error)) {
+          this.emitMessage(asError(error).message, "error");
+          void this.reportAppendFailure();
+          this.emitState("error");
+        }
+      } finally {
+        void (stream == null ? void 0 : stream.cancel());
+      }
+    }
+    /**
+     * 补报媒体元素的错误码。
+     *
+     * SourceBuffer 的 error 事件先于媒体元素错误传播，同步读 audio.error
+     * 大概率是 null。让出一轮事件循环再读，才能拿到真正的 MediaError。
+     */
+    async reportAppendFailure() {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const detail = describeMediaError(this.audio);
+      if (detail) this.emitMessage(`媒体元素错误${detail}`, "error");
+    }
+    isStreamCurrent(session, token, signal) {
+      return this.isCurrent(session) && this.streamToken === token && !signal.aborted;
+    }
+    /**
+     * 全部样本都送进 SourceBuffer 后收口 MediaSource。
+     *
+     * 只有真的跑到最后一个样本才收口。seek 之后的流也会走到循环末尾，
+     * 但那时前面还有没缓冲的区间，提前 endOfStream 会把 duration 定在错的位置。
+     */
+    async finishStream(session, lastSample) {
+      const context = this.context;
+      const mediaSource = this.mediaSource;
+      if (!context || !mediaSource) return;
+      if (lastSample < context.meta.sampleCount) return;
+      if (mediaSource.readyState !== "open") return;
+      await this.sourceBufferChain.catch(() => void 0);
+      if (!this.isCurrent(session)) return;
+      if (this.sourceBuffer) {
+        await waitForSourceBufferIdle(this.sourceBuffer, this.sessionSignal(session));
+      }
+      if (!this.isCurrent(session) || mediaSource.readyState !== "open") return;
+      try {
+        mediaSource.endOfStream();
+      } catch (error) {
+        this.emitMessage(`标记音频结尾失败: ${asError(error).message}`, "warn");
+      }
+    }
+    async waitForRoom(session, token, signal) {
+      while (this.isStreamCurrent(session, token, signal) && this.bufferedAhead() >= this.options.maxBufferAheadSeconds) {
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      }
+      if (!this.isStreamCurrent(session, token, signal)) throw abortError$1();
+    }
+    /**
+     * seek 后的新流。目标仍在已保存的 MP4 头内时先复用内存字节，读完再从
+     * head.length 开一条网络流；否则直接从目标 sample 的绝对偏移续传。
+     */
+    createSampleStream(context, startSample, signal) {
+      const start = context.meta.mdatStart + context.meta.offsets[startSample];
+      if (start < context.head.length) {
+        return this.createNetworkStream(
+          context.url,
+          context.head.length,
+          signal,
+          context.head.slice(start)
+        );
+      }
+      return this.createNetworkStream(context.url, start, signal);
+    }
+    async decryptRange(context, encrypted, startSample, endSample) {
+      const ivSize = cencIvSize(context.meta);
+      const jobs = [];
+      for (let i2 = startSample; i2 < endSample; i2++) {
+        const relative = context.meta.offsets[i2] - context.meta.offsets[startSample];
+        const size = context.meta.sizes[i2];
+        jobs.push({
+          iv: context.meta.ivs.slice(i2 * ivSize, (i2 + 1) * ivSize),
+          ciphertext: encrypted.slice(relative, relative + size)
+        });
+      }
+      return mapLimit(jobs, this.options.decryptConcurrency, (job) => decryptCencSample(
+        context.key,
+        job.iv,
+        job.ciphertext,
+        context.counterStart
+      ));
+    }
+    async detectCounterStart(meta, head, key) {
+      const count = Math.min(6, meta.sampleCount);
+      if (count === 0) return 0;
+      const start = meta.mdatStart + meta.offsets[0];
+      const end = meta.mdatStart + meta.offsets[count] - 1;
+      if (end >= head.length) throw new Error("Opus counter 探测数据不完整");
+      const encrypted = head.slice(start, end + 1);
+      const ivSize = cencIvSize(meta);
+      for (const candidate of [0, 1]) {
+        const firstBytes = /* @__PURE__ */ new Set();
+        for (let i2 = 0; i2 < count; i2++) {
+          const relative = meta.offsets[i2];
+          const ciphertext = encrypted.slice(relative, relative + meta.sizes[i2]);
+          const plain = await decryptCencSample(
+            key,
+            meta.ivs.slice(i2 * ivSize, (i2 + 1) * ivSize),
+            ciphertext,
+            candidate
+          );
+          if (plain.length > 0) firstBytes.add(plain[0]);
+        }
+        if (firstBytes.size === 1) {
+          this.emitMessage(`CENC counter 低位起始=${candidate}`, "info");
+          return candidate;
+        }
+      }
+      this.emitMessage("CENC counter 未收敛，按 0 继续", "warn");
+      return 0;
+    }
+    async evictBehind(session) {
+      const sourceBuffer = this.sourceBuffer;
+      if (!sourceBuffer || !sourceBuffer.buffered.length) return;
+      const current = this.audio.currentTime;
+      if (current <= this.options.keepBehindSeconds + 5) return;
+      const start = sourceBuffer.buffered.start(0);
+      const end = current - this.options.keepBehindSeconds;
+      if (start < end) {
+        try {
+          await this.enqueueSourceBuffer(session, (buffer) => buffer.remove(start, end));
+        } catch {
+        }
+      }
+    }
+    async restartAt(target, wasPlaying) {
+      var _a, _b;
+      const context = this.context;
+      if (!context) return;
+      if (this.audio.error) {
+        this.emitMessage("播放元素已进入错误态，无法跳转，请重新开始听书", "warn");
+        return;
+      }
+      const session = this.session;
+      const seek = ++this.seekToken;
+      this.streamToken++;
+      (_a = this.streamController) == null ? void 0 : _a.abort();
+      let low = 0;
+      let high = context.meta.sampleCount - 1;
+      let index = 0;
+      const targetTicks = target * context.meta.timescale;
+      while (low <= high) {
+        const middle = low + high >> 1;
+        if (context.ticks[middle] <= targetTicks) {
+          index = middle;
+          low = middle + 1;
+        } else {
+          high = middle - 1;
+        }
+      }
+      const preSamples = Math.max(1, Math.round(context.samplesPerSecond * 2));
+      const startSample = Math.max(0, index - preSamples);
+      this.emitMessage(`跳转到 ${target.toFixed(1)} 秒`, "info");
+      await this.sourceBufferChain.catch(() => void 0);
+      if (seek !== this.seekToken || !this.isCurrent(session)) return;
+      const bufferedEnd = ((_b = this.sourceBuffer) == null ? void 0 : _b.buffered.length) ? this.sourceBuffer.buffered.end(this.sourceBuffer.buffered.length - 1) : 0;
+      if (bufferedEnd > 0) {
+        try {
+          await this.enqueueSourceBuffer(session, (sourceBuffer) => sourceBuffer.remove(0, bufferedEnd + 0.5));
+        } catch {
+        }
+      }
+      if (seek !== this.seekToken || !this.isCurrent(session)) return;
+      if (this.mediaSource && this.mediaSource.readyState === "closed") {
+        this.emitMessage("媒体源已关闭，无法跳转", "warn");
+        return;
+      }
+      this.startStream(startSample);
+      if (wasPlaying) void this.audio.play().catch(() => void 0);
+    }
+    isTimeBuffered(time) {
+      var _a;
+      const ranges = (_a = this.sourceBuffer) == null ? void 0 : _a.buffered;
+      if (!ranges) return false;
+      for (let i2 = 0; i2 < ranges.length; i2++) {
+        if (time >= ranges.start(i2) - 0.05 && time <= ranges.end(i2) + 0.05) return true;
+      }
+      return false;
+    }
+    bufferedAhead() {
+      var _a;
+      const ranges = (_a = this.sourceBuffer) == null ? void 0 : _a.buffered;
+      if (!ranges || !ranges.length) return 0;
+      const current = this.audio.currentTime;
+      for (let i2 = 0; i2 < ranges.length; i2++) {
+        if (current >= ranges.start(i2) - 0.05 && current <= ranges.end(i2) + 0.05) {
+          return Math.max(0, ranges.end(i2) - current);
+        }
+      }
+      return Math.max(0, ranges.end(ranges.length - 1) - current);
+    }
+    emitState(state2) {
+      var _a, _b;
+      this.state = state2;
+      (_b = (_a = this.options).onStateChange) == null ? void 0 : _b.call(_a, state2);
+    }
+    emitProgress(progress) {
+      var _a, _b;
+      (_b = (_a = this.options).onProgress) == null ? void 0 : _b.call(_a, progress);
+    }
+    emitMessage(message, level) {
+      var _a, _b;
+      (_b = (_a = this.options).onMessage) == null ? void 0 : _b.call(_a, message, level);
+    }
+  }
+  function gmAudioFetch(input, init2 = {}) {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    const headers = normalizeHeaders(init2.headers);
+    const signal = init2.signal ?? null;
+    return new Promise((resolve, reject) => {
+      if (signal == null ? void 0 : signal.aborted) {
+        reject(abortError());
+        return;
+      }
+      let settled = false;
+      let request;
+      const onAbort = () => {
+        try {
+          request == null ? void 0 : request.abort();
+        } catch {
+        }
+        if (settled) return;
+        settled = true;
+        reject(abortError());
+      };
+      signal == null ? void 0 : signal.addEventListener("abort", onAbort, { once: true });
+      const cleanup = () => {
+        signal == null ? void 0 : signal.removeEventListener("abort", onAbort);
+      };
+      const succeed = (res, body) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(makeResponse(res, body));
+      };
+      const fail = (error) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        reject(error);
+      };
+      request = GM_xmlhttpRequest({
+        method: "GET",
+        url,
+        headers,
+        responseType: "stream",
+        // GM 请求不带页面 Referer；anonymous 同时也不带 Cookie
+        anonymous: true,
+        onreadystatechange(res) {
+          if (settled || res.readyState < 3) return;
+          const stream = res.response;
+          if (stream instanceof ReadableStream) succeed(res, stream);
+        },
+        onload(res) {
+          if (settled) return;
+          const stream = res.response;
+          if (stream instanceof ReadableStream) {
+            succeed(res, stream);
+            return;
+          }
+          const bytes = toBytes(res);
+          if (!bytes) {
+            fail(new Error(
+              "GM_xmlhttpRequest 未返回二进制音频数据（请确认 Tampermonkey 版本支持 responseType）"
+            ));
+            return;
+          }
+          if (bytes.byteLength === 0 && res.status !== 204 && res.status !== 304) {
+            fail(new Error("音频响应为空"));
+            return;
+          }
+          succeed(res, bytes);
+        },
+        onerror(res) {
+          fail(new Error(`音频 CDN 请求失败：${describe(res)}`));
+        },
+        ontimeout() {
+          fail(new Error("音频 CDN 请求超时"));
+        }
+      });
+    });
+  }
+  function abortError() {
+    return new DOMException("音频请求已取消", "AbortError");
+  }
+  function parseHeaders(raw) {
+    const headers = new Headers();
+    if (!raw) return headers;
+    for (const line of raw.split(/\r?\n/)) {
+      const colon = line.indexOf(":");
+      if (colon <= 0) continue;
+      const name2 = line.slice(0, colon).trim();
+      const value = line.slice(colon + 1).trim();
+      if (!name2) continue;
+      try {
+        headers.append(name2, value);
+      } catch {
+      }
+    }
+    return headers;
+  }
+  function makeResponse(res, body) {
+    return new Response(body ?? new Uint8Array(), {
+      status: res.status || 200,
+      statusText: res.statusText || "",
+      headers: parseHeaders(res.responseHeaders)
+    });
+  }
+  function toBytes(res) {
+    const raw = res.response;
+    if (raw instanceof ArrayBuffer) return new Uint8Array(raw);
+    if (raw instanceof Uint8Array) return raw;
+    return null;
+  }
+  function normalizeHeaders(init2) {
+    const out = {};
+    if (!init2) return out;
+    if (init2 instanceof Headers) {
+      init2.forEach((value, key) => {
+        out[key] = value;
+      });
+      return out;
+    }
+    if (Array.isArray(init2)) {
+      for (const [key, value] of init2) {
+        if (key !== void 0 && value !== void 0) out[key] = value;
+      }
+      return out;
+    }
+    return { ...init2 };
+  }
+  function describe(res) {
+    if ("error" in res && res.error) return String(res.error);
+    const status = res.status;
+    return status ? `HTTP ${status}` : "网络错误";
+  }
+  const CONTENT_SELECTOR = "#fqa-reader-content";
+  const TITLE_SELECTOR = "h1.muye-reader-title";
+  const ACTIVE_CLASS = "fqa-audio-active";
+  function collectParagraphs() {
+    const map = /* @__PURE__ */ new Map();
+    const container2 = document.querySelector(CONTENT_SELECTOR);
+    if (!container2) return map;
+    for (const node of container2.querySelectorAll("p[idx]")) {
+      const idx = Number(node.getAttribute("idx"));
+      if (!Number.isFinite(idx)) continue;
+      const list = map.get(idx);
+      if (list) list.push(node);
+      else map.set(idx, [node]);
+    }
+    return map;
+  }
+  function titleTarget(tags) {
+    const titles = tags.filter((t) => t.is_title);
+    if (titles.length !== 1) return null;
+    return document.querySelector(TITLE_SELECTOR);
+  }
+  function tagIndexAt(tags, timeMs) {
+    let low = 0;
+    let high = tags.length - 1;
+    let found = -1;
+    while (low <= high) {
+      const middle = low + high >> 1;
+      if (tags[middle].startms <= timeMs) {
+        found = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    if (found < 0) return -1;
+    return found;
+  }
+  class ParagraphHighlighter {
+    constructor() {
+      __publicField(this, "paragraphs", /* @__PURE__ */ new Map());
+      __publicField(this, "tags", []);
+      __publicField(this, "active", []);
+      __publicField(this, "activeTagIndex", -1);
+    }
+    /** 换章或正文重新插入后调用，重建索引 */
+    reset(tags) {
+      this.clear();
+      this.tags = tags;
+      this.paragraphs = collectParagraphs();
+      this.activeTagIndex = -1;
+    }
+    /** 正文 DOM 被替换过（切音色不会换 DOM，但切章会），重新抓一遍段落 */
+    refresh() {
+      this.paragraphs = collectParagraphs();
+      this.activeTagIndex = -1;
+    }
+    get timeTags() {
+      return this.tags;
+    }
+    /** 当前高亮对应的时间点下标，用于切音色时保持段落 */
+    get currentTagIndex() {
+      return this.activeTagIndex;
+    }
+    clear() {
+      for (const node of this.active) node.classList.remove(ACTIVE_CLASS);
+      this.active = [];
+    }
+    /**
+     * 按播放时间更新高亮。
+     *
+     * @param scroll 是否把高亮段落滚进视口
+     * @returns 当前时间点下标，没有变化时返回原值
+     */
+    update(timeMs, scroll) {
+      if (this.tags.length === 0) return -1;
+      const index = tagIndexAt(this.tags, timeMs);
+      if (index < 0 || index === this.activeTagIndex) return this.activeTagIndex;
+      this.activeTagIndex = index;
+      this.applyTag(index, scroll);
+      return index;
+    }
+    /** 直接高亮第 index 个时间点，供切音色后恢复位置用 */
+    applyTag(index, scroll) {
+      const tag = this.tags[index];
+      if (!tag) return;
+      this.clear();
+      const targets = tag.is_title ? [titleTarget(this.tags)].filter((n) => n !== null) : this.rangeTargets(tag.startidx, tag.endidx);
+      for (const node of targets) node.classList.add(ACTIVE_CLASS);
+      this.active = targets;
+      if (scroll && targets[0]) {
+        targets[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }
+    rangeTargets(startidx, endidx) {
+      const targets = [];
+      for (let idx = startidx; idx <= endidx; idx++) {
+        const nodes = this.paragraphs.get(idx);
+        if (nodes) targets.push(...nodes);
+      }
+      return targets;
+    }
+    /**
+     * 点段落跳转用：找出这个节点属于哪个时间点。
+     *
+     * 从点击目标往上找最近的 <p[idx]>（点到 blk 或行内标签上也能命中），
+     * 再拿 idx 去时间点表里查覆盖它的那一段。
+     */
+    tagIndexOfNode(node) {
+      var _a;
+      const paragraph = nearestParagraph(node);
+      if (paragraph) {
+        const idx = Number(paragraph.getAttribute("idx"));
+        if (Number.isFinite(idx)) return this.tagIndexOfIdx(idx);
+      }
+      if (node instanceof Node && ((_a = titleTarget(this.tags)) == null ? void 0 : _a.contains(node))) {
+        return this.tags.findIndex((t) => t.is_title);
+      }
+      return -1;
+    }
+    /** idx 落在哪个时间点区间。时间点可能跨多段，所以按区间判断 */
+    tagIndexOfIdx(idx) {
+      return this.tags.findIndex((t) => !t.is_title && idx >= t.startidx && idx <= t.endidx);
+    }
+    /** 第 index 个时间点的起始秒数，供 seek 用 */
+    startSecondsOf(index) {
+      const tag = this.tags[index];
+      return tag ? tag.startms / 1e3 : null;
+    }
+  }
+  function nearestParagraph(node) {
+    let current = node;
+    while (current) {
+      if (current instanceof HTMLElement && current.matches("p[idx]")) return current;
+      if (current instanceof HTMLElement && current.id === "fqa-reader-content") return null;
+      current = current.parentNode;
+    }
+    return null;
+  }
+  const TONE_STORE_KEY = "audiobook_tone";
+  const state = vue.reactive({
+    open: false,
+    collapsed: false,
+    tonePickerOpen: false,
+    loading: false,
+    playing: false,
+    spinning: false,
+    tones: [],
+    toneId: null,
+    toneName: "",
+    cover: "",
+    title: "",
+    error: ""
+  });
+  const highlighter = new ParagraphHighlighter();
+  let audio = null;
+  let player = null;
+  let itemId = "";
+  let bookId = "";
+  let trackTimer = null;
+  let pendingTagIndex = -1;
+  let playToken = 0;
+  let paragraphClickBound = false;
+  const onParagraphClick = (event) => {
+    if (!state.open || state.toneId === null) return;
+    const target = event.target;
+    if (target instanceof HTMLElement && target.closest("a, button, sup")) return;
+    const index = highlighter.tagIndexOfNode(target);
+    if (index < 0) return;
+    const seconds = highlighter.startSecondsOf(index);
+    if (seconds === null || !audio) return;
+    audio.currentTime = seconds;
+    highlighter.applyTag(index, false);
+    if (!state.playing) void togglePlay();
+  };
+  function bindParagraphClick() {
+    if (paragraphClickBound) return;
+    document.addEventListener("click", onParagraphClick);
+    paragraphClickBound = true;
+  }
+  function unbindParagraphClick() {
+    if (!paragraphClickBound) return;
+    document.removeEventListener("click", onParagraphClick);
+    paragraphClickBound = false;
+  }
+  function ensurePlayer() {
+    if (player) return player;
+    audio = document.createElement("audio");
+    audio.preload = "none";
+    audio.style.display = "none";
+    document.body.appendChild(audio);
+    player = new CencAudioPlayer(audio, {
+      // 音频 CDN 不在页面 CSP 的 connect-src 里，页面 fetch 会被 report-only
+      // 策略上报到 mon.zijieapi.com。走 GM 通道绕开上报，详见 gmFetch
+      fetch: gmAudioFetch,
+      onStateChange: onPlayerState,
+      onMessage: (message, level) => {
+        if (level === "error") {
+          console.error("[fqa:audio]", message);
+          state.error = message;
+        } else {
+          console.log("[fqa:audio]", message);
+        }
+      }
+    });
+    return player;
+  }
+  function onPlayerState(playerState) {
+    state.playing = playerState === "playing";
+    state.spinning = playerState === "playing" || playerState === "loading";
+    if (playerState === "playing") state.error = "";
+    if (playerState === "playing") startTracking();
+    else stopTracking();
+    if (playerState === "ended") {
+      highlighter.clear();
+      onChapterEnd();
+    }
+  }
+  const NEXT_CHAPTER_SELECTOR = "div.chapter-btn.next";
+  function onChapterEnd() {
+    var _a;
+    if (settings$1.audiobookChapterEnd !== "next") {
+      state.spinning = false;
+      return;
+    }
+    const next = (_a = document.querySelector(NEXT_CHAPTER_SELECTOR)) == null ? void 0 : _a.firstChild;
+    if (typeof (next == null ? void 0 : next.click) !== "function") {
+      state.spinning = false;
+      state.error = "已经是最后一章";
+      return;
+    }
+    state.spinning = true;
+    const before = itemId;
+    next.click();
+    unsafeWindow.setTimeout(() => {
+      var _a2;
+      if (!state.open || itemId !== before) return;
+      const current = ((_a2 = window.location.pathname.split("/").pop()) == null ? void 0 : _a2.substring(0, 19)) || "";
+      if (current && current !== before) {
+        void switchChapter(current, { cover: state.cover, title: state.title });
+      } else {
+        state.spinning = false;
+        state.error = "自动切章失败";
+      }
+    }, 3e3);
+  }
+  function startTracking() {
+    if (trackTimer !== null) return;
+    trackTimer = unsafeWindow.setInterval(() => {
+      if (!audio) return;
+      highlighter.update(audio.currentTime * 1e3, settings$1.audiobookFollow);
+    }, 120);
+  }
+  function stopTracking() {
+    if (trackTimer === null) return;
+    unsafeWindow.clearInterval(trackTimer);
+    trackTimer = null;
+  }
+  function storedToneId() {
+    const raw = read(TONE_STORE_KEY);
+    return typeof raw === "number" ? raw : null;
+  }
+  async function openAudiobook(chapter, book, meta) {
+    itemId = chapter;
+    bookId = book;
+    state.cover = meta.cover;
+    state.title = meta.title;
+    state.error = "";
+    state.open = true;
+    state.collapsed = false;
+    if (state.tones.length === 0) {
+      try {
+        state.tones = await getBookAvailableTones(bookId);
+      } catch (e) {
+        state.error = "取音色列表失败";
+        console.error("[fqa:audio] 取音色列表失败:", e);
+        return;
+      }
+    }
+    if (state.tones.length === 0) {
+      state.error = "这本书没有可用音色";
+      return;
+    }
+    const remembered = storedToneId();
+    if (remembered !== null && state.tones.some((t) => t.id === remembered)) {
+      await selectTone(remembered);
+      return;
+    }
+    state.tonePickerOpen = true;
+  }
+  async function selectTone(toneId) {
+    state.tonePickerOpen = false;
+    const tone = state.tones.find((t) => t.id === toneId);
+    state.toneId = toneId;
+    state.toneName = (tone == null ? void 0 : tone.name) ?? "";
+    write(TONE_STORE_KEY, toneId);
+    await playCurrent();
+  }
+  function openTonePicker() {
+    state.tonePickerOpen = true;
+  }
+  function closeTonePicker() {
+    state.tonePickerOpen = false;
+    if (state.toneId === null) closeAudiobook();
+  }
+  async function changeTone(toneId) {
+    if (toneId === state.toneId) {
+      state.tonePickerOpen = false;
+      return;
+    }
+    pendingTagIndex = highlighter.currentTagIndex;
+    await selectTone(toneId);
+  }
+  async function playCurrent() {
+    const toneId = state.toneId;
+    if (toneId === null || !itemId) return;
+    const token = ++playToken;
+    const chapter = itemId;
+    state.loading = true;
+    state.spinning = true;
+    state.error = "";
+    try {
+      const [contexts, tags] = await Promise.all([
+        getPlayInfo(chapter, toneId),
+        getChapterParagraphTimeTag(chapter, toneId)
+      ]);
+      if (token !== playToken) return;
+      const context = contexts.find((c) => c.item_id === chapter) ?? contexts[0];
+      const url = context == null ? void 0 : context.urls[0];
+      if (!context || !url) {
+        state.error = "这一章没有音频";
+        return;
+      }
+      highlighter.reset(tags);
+      bindParagraphClick();
+      const instance = ensurePlayer();
+      await instance.start({ url, key: context.key });
+      if (token !== playToken) return;
+      if (pendingTagIndex >= 0) {
+        const tag = tags[pendingTagIndex];
+        if (tag && audio) {
+          audio.currentTime = tag.startms / 1e3;
+          highlighter.applyTag(pendingTagIndex, true);
+        }
+        pendingTagIndex = -1;
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      state.error = message;
+      console.error("[fqa:audio] 播放失败:", e);
+    } finally {
+      state.loading = false;
+      if (!state.playing) state.spinning = false;
+    }
+  }
+  async function togglePlay() {
+    if (!player) return;
+    if (state.playing) {
+      player.pause();
+      return;
+    }
+    if (player.currentState === "ended" && audio) audio.currentTime = 0;
+    try {
+      await player.play();
+    } catch (e) {
+      console.warn("[fqa:audio] play() 被拒:", e);
+    }
+  }
+  function toggleCollapsed() {
+    state.collapsed = !state.collapsed;
+  }
+  async function switchChapter(chapter, meta) {
+    if (!state.open || state.toneId === null) return;
+    itemId = chapter;
+    state.cover = meta.cover;
+    state.title = meta.title;
+    pendingTagIndex = -1;
+    await playCurrent();
+  }
+  function refreshParagraphs() {
+    if (state.open) highlighter.refresh();
+  }
+  function closeAudiobook() {
+    stopTracking();
+    unbindParagraphClick();
+    playToken++;
+    highlighter.clear();
+    player == null ? void 0 : player.stop();
+    state.open = false;
+    state.collapsed = false;
+    state.tonePickerOpen = false;
+    state.playing = false;
+    state.spinning = false;
+    state.loading = false;
+    state.error = "";
+  }
+  const _hoisted_1$b = {
+    class: "fqa-tone-box",
+    role: "dialog",
+    "aria-modal": "true",
+    "aria-label": "选择音色"
+  };
+  const _hoisted_2$b = { class: "fqa-tone-title" };
+  const _hoisted_3$b = { class: "fqa-tone-list" };
+  const _hoisted_4$a = ["onClick"];
+  const _hoisted_5$a = ["src", "alt"];
+  const _hoisted_6$a = {
+    key: 1,
+    class: "fqa-tone-icon fqa-tone-icon-empty"
+  };
+  const _hoisted_7$8 = { class: "fqa-tone-text" };
+  const _hoisted_8$8 = { class: "fqa-tone-name" };
+  const _hoisted_9$8 = {
+    key: 0,
+    class: "fqa-tone-gender"
+  };
+  const _hoisted_10$8 = {
+    key: 0,
+    class: "fqa-tone-desc"
+  };
+  const _hoisted_11$6 = { class: "fqa-tone-actions" };
+  const _sfc_main$b = /* @__PURE__ */ vue.defineComponent({
+    __name: "TonePicker",
+    props: {
+      tones: {},
+      current: {}
+    },
+    emits: ["select", "close"],
+    setup(__props, { emit: __emit }) {
+      const props = __props;
+      const emit = __emit;
+      function genderLabel(gender) {
+        if (gender === 1) return "男声";
+        if (gender === 2) return "女声";
+        return "";
+      }
+      return (_ctx, _cache) => {
+        return vue.openBlock(), vue.createElementBlock("div", {
+          class: "fqa-tone-mask",
+          onClick: _cache[1] || (_cache[1] = vue.withModifiers(($event) => emit("close"), ["self"]))
+        }, [
+          vue.createElementVNode("div", _hoisted_1$b, [
+            vue.createElementVNode("h3", _hoisted_2$b, vue.toDisplayString(props.current === null ? "选择音色" : "切换音色"), 1),
+            _cache[2] || (_cache[2] = vue.createElementVNode("p", { class: "fqa-tone-sub" }, "切换后会从当前段落开头继续", -1)),
+            vue.createElementVNode("div", _hoisted_3$b, [
+              (vue.openBlock(true), vue.createElementBlock(vue.Fragment, null, vue.renderList(props.tones, (tone) => {
+                return vue.openBlock(), vue.createElementBlock("button", {
+                  key: tone.id,
+                  type: "button",
+                  class: vue.normalizeClass(["fqa-tone-item", { "fqa-tone-item-active": tone.id === props.current }]),
+                  onClick: ($event) => emit("select", tone.id)
+                }, [
+                  tone.icon ? (vue.openBlock(), vue.createElementBlock("img", {
+                    key: 0,
+                    class: "fqa-tone-icon",
+                    src: tone.icon,
+                    alt: tone.name
+                  }, null, 8, _hoisted_5$a)) : (vue.openBlock(), vue.createElementBlock("span", _hoisted_6$a, vue.toDisplayString(tone.name.slice(0, 1)), 1)),
+                  vue.createElementVNode("span", _hoisted_7$8, [
+                    vue.createElementVNode("span", _hoisted_8$8, [
+                      vue.createTextVNode(vue.toDisplayString(tone.name) + " ", 1),
+                      genderLabel(tone.gender) ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_9$8, vue.toDisplayString(genderLabel(tone.gender)), 1)) : vue.createCommentVNode("", true)
+                    ]),
+                    tone.description ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_10$8, vue.toDisplayString(tone.description), 1)) : vue.createCommentVNode("", true)
+                  ])
+                ], 10, _hoisted_4$a);
+              }), 128))
+            ]),
+            vue.createElementVNode("div", _hoisted_11$6, [
+              vue.createElementVNode("button", {
+                type: "button",
+                class: "fqa-tone-btn",
+                onClick: _cache[0] || (_cache[0] = ($event) => emit("close"))
+              }, "取消")
+            ])
+          ])
+        ]);
+      };
+    }
+  });
+  const _hoisted_1$a = ["innerHTML"];
+  const _hoisted_2$a = {
+    key: 1,
+    class: "fqa-audio-bar"
+  };
+  const _hoisted_3$a = ["title", "aria-label"];
+  const _hoisted_4$9 = ["src"];
+  const _hoisted_5$9 = {
+    key: 1,
+    class: "fqa-audio-cover-empty"
+  };
+  const _hoisted_6$9 = ["innerHTML"];
+  const _hoisted_7$7 = { class: "fqa-audio-meta" };
+  const _hoisted_8$7 = { class: "fqa-audio-title" };
+  const _hoisted_9$7 = { class: "fqa-audio-sub" };
+  const _hoisted_10$7 = ["innerHTML"];
+  const _sfc_main$a = /* @__PURE__ */ vue.defineComponent({
+    __name: "AudioBar",
+    setup(__props) {
+      function onSelect(id) {
+        if (state.toneId === null) void selectTone(id);
+        else void changeTone(id);
+      }
+      return (_ctx, _cache) => {
+        return vue.unref(state).open ? (vue.openBlock(), vue.createElementBlock("div", {
+          key: 0,
+          class: vue.normalizeClass(["fqa-audio-root", { "fqa-audio-collapsed": vue.unref(state).collapsed }])
+        }, [
+          vue.unref(state).collapsed ? (vue.openBlock(), vue.createElementBlock("button", {
+            key: 0,
+            type: "button",
+            class: "fqa-audio-expand",
+            title: "展开听书栏",
+            "aria-label": "展开听书栏",
+            onClick: _cache[0] || (_cache[0] = //@ts-ignore
+            (...args) => vue.unref(toggleCollapsed) && vue.unref(toggleCollapsed)(...args))
+          }, [
+            vue.createElementVNode("span", {
+              class: "fqa-audio-icon fqa-audio-icon-flip",
+              innerHTML: vue.unref(leftIcon)
+            }, null, 8, _hoisted_1$a)
+          ])) : (vue.openBlock(), vue.createElementBlock("div", _hoisted_2$a, [
+            vue.createElementVNode("button", {
+              type: "button",
+              class: "fqa-audio-cover",
+              title: vue.unref(state).playing ? "暂停" : "播放",
+              "aria-label": vue.unref(state).playing ? "暂停" : "播放",
+              onClick: _cache[1] || (_cache[1] = //@ts-ignore
+              (...args) => vue.unref(togglePlay) && vue.unref(togglePlay)(...args))
+            }, [
+              vue.createElementVNode("span", {
+                class: vue.normalizeClass(["fqa-audio-disc", { "fqa-audio-spin": vue.unref(state).spinning }])
+              }, [
+                vue.unref(state).cover ? (vue.openBlock(), vue.createElementBlock("img", {
+                  key: 0,
+                  src: vue.unref(state).cover,
+                  alt: ""
+                }, null, 8, _hoisted_4$9)) : (vue.openBlock(), vue.createElementBlock("span", _hoisted_5$9, "听"))
+              ], 2),
+              vue.createElementVNode("span", {
+                class: "fqa-audio-state",
+                innerHTML: vue.unref(state).playing ? vue.unref(playingIcon) : vue.unref(pausedIcon)
+              }, null, 8, _hoisted_6$9)
+            ], 8, _hoisted_3$a),
+            vue.createElementVNode("div", _hoisted_7$7, [
+              vue.createElementVNode("span", _hoisted_8$7, vue.toDisplayString(vue.unref(state).title), 1),
+              vue.createElementVNode("span", _hoisted_9$7, vue.toDisplayString(vue.unref(state).error || (vue.unref(state).loading ? "缓冲中…" : vue.unref(state).toneName)), 1)
+            ]),
+            vue.createElementVNode("button", {
+              type: "button",
+              class: "fqa-audio-btn",
+              title: "切换音色",
+              "aria-label": "切换音色",
+              onClick: _cache[2] || (_cache[2] = //@ts-ignore
+              (...args) => vue.unref(openTonePicker) && vue.unref(openTonePicker)(...args))
+            }, [..._cache[5] || (_cache[5] = [
+              vue.createElementVNode("span", { class: "fqa-audio-dots" }, null, -1)
+            ])]),
+            vue.createElementVNode("button", {
+              type: "button",
+              class: "fqa-audio-btn",
+              title: "收起",
+              "aria-label": "收起听书栏",
+              onClick: _cache[3] || (_cache[3] = //@ts-ignore
+              (...args) => vue.unref(toggleCollapsed) && vue.unref(toggleCollapsed)(...args))
+            }, [
+              vue.createElementVNode("span", {
+                class: "fqa-audio-icon",
+                innerHTML: vue.unref(leftIcon)
+              }, null, 8, _hoisted_10$7)
+            ]),
+            vue.createElementVNode("button", {
+              type: "button",
+              class: "fqa-audio-btn fqa-audio-close",
+              title: "关闭听书",
+              "aria-label": "关闭听书",
+              onClick: _cache[4] || (_cache[4] = //@ts-ignore
+              (...args) => vue.unref(closeAudiobook) && vue.unref(closeAudiobook)(...args))
+            }, " × ")
+          ])),
+          vue.unref(state).tonePickerOpen ? (vue.openBlock(), vue.createBlock(_sfc_main$b, {
+            key: 2,
+            tones: vue.unref(state).tones,
+            current: vue.unref(state).toneId,
+            onSelect,
+            onClose: vue.unref(closeTonePicker)
+          }, null, 8, ["tones", "current", "onClose"])) : vue.createCommentVNode("", true)
+        ], 2)) : vue.createCommentVNode("", true);
+      };
+    }
+  });
+  const audiobookcss = `/* 听书悬浮栏与音色弹窗。
+ * 暗色跟随页面的 div.muye-reader-dark（与 userHook 的判定一致）。 */
+
+.fqa-audio-root {
+	--fqa-audio-bg: #fff;
+	--fqa-audio-text: #1f2329;
+	--fqa-audio-sub: #8f959e;
+	--fqa-audio-hover: rgba(31, 35, 41, 0.06);
+	--fqa-audio-border: rgba(31, 35, 41, 0.1);
+	--fqa-audio-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+
+	position: fixed;
+	left: 20px;
+	bottom: 20px;
+	z-index: 2147483000;
+	font-size: 14px;
+	color: var(--fqa-audio-text);
+}
+
+/* 页面切到夜间模式时整体反色 */
+.muye-reader-dark .fqa-audio-root,
+.fqa-audio-root.fqa-audio-dark {
+	--fqa-audio-bg: #2b2b2b;
+	--fqa-audio-text: #b3b3b3;
+	--fqa-audio-sub: #7a7a7a;
+	--fqa-audio-hover: rgba(255, 255, 255, 0.08);
+	--fqa-audio-border: rgba(255, 255, 255, 0.12);
+	--fqa-audio-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.fqa-audio-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px 8px 8px;
+	border-radius: 999px;
+	background: var(--fqa-audio-bg);
+	box-shadow: var(--fqa-audio-shadow);
+}
+
+/* ------------------------------- 旋转封面 ------------------------------- */
+
+.fqa-audio-cover {
+	position: relative;
+	flex: 0 0 auto;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: var(--fqa-audio-hover);
+	cursor: pointer;
+}
+
+/*
+ * 只有这一层转。状态图标是 .fqa-audio-state，放在旋转层外面，
+ * 否则会跟着封面一起转，反而更看不清。
+ * 播放/缓冲时转，暂停时停在当前角度（animation-play-state 比移除动画更平滑）
+ */
+.fqa-audio-disc {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	overflow: hidden;
+	animation: fqa-audio-rotate 8s linear infinite;
+	animation-play-state: paused;
+}
+
+.fqa-audio-disc.fqa-audio-spin {
+	animation-play-state: running;
+}
+
+.fqa-audio-disc img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.fqa-audio-cover-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	color: var(--fqa-audio-sub);
+	font-size: 18px;
+}
+
+/* 播放/暂停状态。压一层遮罩，浅色封面上也看得清 */
+.fqa-audio-state {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.38);
+	color: #fff;
+	transition: background 0.2s ease;
+}
+
+.fqa-audio-cover:hover .fqa-audio-state {
+	background: rgba(0, 0, 0, 0.55);
+}
+
+/*
+ * 只给尺寸，不写 fill：paused.svg 里那块透明点击区是 fill="none"，
+ * CSS 的 fill 优先级高于表现属性，会把它填成一个白方块盖住图标。
+ * 两个 svg 自身已经用 currentColor，跟着上面的 color 走。
+ */
+.fqa-audio-state svg {
+	width: 18px;
+	height: 18px;
+}
+
+@keyframes fqa-audio-rotate {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fqa-audio-disc { animation: none; }
+}
+
+/* -------------------------------- 文字区 -------------------------------- */
+
+.fqa-audio-meta {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-width: 0;
+	max-width: 180px;
+	line-height: 1.35;
+}
+
+.fqa-audio-title,
+.fqa-audio-sub {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.fqa-audio-sub {
+	color: var(--fqa-audio-sub);
+	font-size: 12px;
+}
+
+/* -------------------------------- 按钮 -------------------------------- */
+
+.fqa-audio-btn,
+.fqa-audio-expand {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--fqa-audio-text);
+	cursor: pointer;
+}
+
+.fqa-audio-btn:hover,
+.fqa-audio-expand:hover {
+	background: var(--fqa-audio-hover);
+}
+
+.fqa-audio-close {
+	font-size: 20px;
+	line-height: 1;
+}
+
+/* svg 用 currentColor，跟着按钮的 color 走 */
+.fqa-audio-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+}
+
+.fqa-audio-icon svg {
+	width: 100%;
+	height: 100%;
+	fill: currentColor;
+}
+
+/* 收起后箭头水平翻转朝右 */
+.fqa-audio-icon-flip {
+	transform: scaleX(-1);
+}
+
+.fqa-audio-expand {
+	background: var(--fqa-audio-bg);
+	box-shadow: var(--fqa-audio-shadow);
+	width: 36px;
+	height: 36px;
+}
+
+/* 三个点 */
+.fqa-audio-dots,
+.fqa-audio-dots::before,
+.fqa-audio-dots::after {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.fqa-audio-dots {
+	position: relative;
+}
+
+.fqa-audio-dots::before,
+.fqa-audio-dots::after {
+	content: '';
+	position: absolute;
+	top: 0;
+}
+
+.fqa-audio-dots::before { left: -7px; }
+.fqa-audio-dots::after { left: 7px; }
+
+/* ----------------------------- 段落高亮 ----------------------------- */
+
+.fqa-audio-active {
+	background: var(--web-brand_light, rgba(241, 70, 70, 0.12));
+	border-radius: 4px;
+	transition: background 0.2s ease;
+}
+
+/* ----------------------------- 音色弹窗 ----------------------------- */
+
+.fqa-tone-mask {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483002;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.fqa-tone-box {
+	width: min(420px, calc(100vw - 32px));
+	max-height: min(560px, calc(100vh - 64px));
+	display: flex;
+	flex-direction: column;
+	padding: 20px;
+	border-radius: 12px;
+	background: var(--fqa-audio-bg, #fff);
+	color: var(--fqa-audio-text, #1f2329);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+}
+
+.fqa-tone-title {
+	margin: 0 0 4px;
+	font-size: 17px;
+	font-weight: 600;
+}
+
+.fqa-tone-sub {
+	margin: 0 0 14px;
+	color: var(--fqa-audio-sub, #8f959e);
+	font-size: 12px;
+}
+
+.fqa-tone-list {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.fqa-tone-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.fqa-tone-item:hover {
+	background: var(--fqa-audio-hover, rgba(31, 35, 41, 0.06));
+}
+
+.fqa-tone-item-active {
+	border-color: var(--web-brand, #f14646);
+}
+
+.fqa-tone-icon {
+	flex: 0 0 auto;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.fqa-tone-icon-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--fqa-audio-hover, rgba(31, 35, 41, 0.06));
+	color: var(--fqa-audio-sub, #8f959e);
+}
+
+.fqa-tone-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.fqa-tone-name {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 14px;
+}
+
+.fqa-tone-gender {
+	color: var(--fqa-audio-sub, #8f959e);
+	font-size: 11px;
+}
+
+.fqa-tone-desc {
+	overflow: hidden;
+	color: var(--fqa-audio-sub, #8f959e);
+	font-size: 12px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.fqa-tone-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 14px;
+}
+
+.fqa-tone-btn {
+	padding: 6px 16px;
+	border: 1px solid var(--fqa-audio-border, rgba(31, 35, 41, 0.1));
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.fqa-tone-btn:hover {
+	background: var(--fqa-audio-hover, rgba(31, 35, 41, 0.06));
+}
+`;
+  const CONTAINER_ID$4 = "fqa-audio-root";
+  const STYLE_ID$5 = "fqa-audio-style";
+  let app$4 = null;
+  let container$4 = null;
+  let themeObserver = null;
+  function injectStyle$5() {
+    if (document.getElementById(STYLE_ID$5)) return;
+    const style = document.createElement("style");
+    style.id = STYLE_ID$5;
+    style.textContent = audiobookcss;
+    document.head.appendChild(style);
+  }
+  function syncTheme() {
+    if (!container$4) return;
+    const dark = document.querySelector("div.muye-reader-dark") !== null;
+    container$4.classList.toggle("fqa-audio-dark", dark);
+  }
+  function watchTheme() {
+    if (themeObserver) return;
+    themeObserver = new MutationObserver(syncTheme);
+    themeObserver.observe(document.body, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
+  function initAudioPanel() {
+    if (app$4) return;
+    injectStyle$5();
+    container$4 = document.createElement("div");
+    container$4.id = CONTAINER_ID$4;
+    document.body.appendChild(container$4);
+    syncTheme();
+    watchTheme();
+    app$4 = vue.createApp({ render: () => vue.h(_sfc_main$a) });
+    app$4.config.errorHandler = (err, _instance, info) => {
+      console.error(`[fqa:audio] Vue error (${info}):`, err);
+    };
+    app$4.mount(container$4);
+  }
+  let currentBook = null;
+  let latestItemId = null;
+  const SCRIPT_CONTAINER_ID = "fqa-reader-content";
+  let comicObserver = null;
+  function ensureScriptContainer(readerContainer, comic) {
+    let scriptContainer = document.getElementById(SCRIPT_CONTAINER_ID);
+    if (!scriptContainer) {
+      scriptContainer = cloneElement(readerContainer);
+      scriptContainer.id = SCRIPT_CONTAINER_ID;
+      scriptContainer.classList.add("fqa");
+      readerContainer.insertAdjacentElement("beforebegin", scriptContainer);
+    }
+    scriptContainer.classList.toggle("fqa-comic-reader", comic);
+    if (settings$1.allowCopy) scriptContainer.classList.remove("noselect");
+    comicObserver == null ? void 0 : comicObserver.disconnect();
+    comicObserver = null;
+    scriptContainer.innerHTML = "";
+    readerContainer.classList.add("fqa-hide");
+    return scriptContainer;
+  }
+  async function insertContent() {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    const itemId2 = ((_a = window.location.pathname.split("/").pop()) == null ? void 0 : _a.substring(0, 19)) || "";
+    if (!itemId2) {
+      console.warn("No item_id found in URL");
+      return;
+    }
+    latestItemId = itemId2;
+    const chapter = await getChapter(itemId2);
+    if (!chapter) {
+      console.warn("No chapter found for item_id:", itemId2);
+      return;
+    }
+    if (latestItemId !== itemId2) {
+      console.debug("Stale chapter response discarded:", itemId2);
+      return;
+    }
+    console.log("Chapter:", chapter);
+    const pageState = unsafeWindow.__INITIAL_STATE__;
+    const chapterTitle = ((_b = chapter.novel_data) == null ? void 0 : _b.title) || ((_d = (_c = pageState == null ? void 0 : pageState.reader) == null ? void 0 : _c.chapterData) == null ? void 0 : _d.title);
+    if (typeof chapter.content === "string") {
+      void applyBookCss((_e = chapter.novel_data) == null ? void 0 : _e.css_map, "#fqa-reader-content");
+      const dp = new DOMParser();
+      const doc = dp.parseFromString(chapter.content, "text/html");
+      const body = doc.body;
+      body.querySelectorAll('link[rel="stylesheet"]').forEach((el) => el.remove());
+      let article = body.querySelector("article");
+      let toProcess = article || body;
+      processFootnotes(toProcess);
+      for (let i2 = 0; i2 < toProcess.childNodes.length; i2++) {
+        if (i2 < 2 && ((_g = (_f = toProcess.childNodes[i2]) == null ? void 0 : _f.innerHTML) == null ? void 0 : _g.includes(chapterTitle))) {
+          toProcess.removeChild(toProcess.childNodes[i2]);
+          break;
+        }
+      }
+      if (!article) {
+        article = document.createElement("article");
+        article.innerHTML = toProcess.innerHTML;
+        toProcess = article;
+      }
+      const readerContainer = document.querySelector("div.muye-reader-content:not(.fqa)");
+      if (readerContainer) {
+        const scriptContainer = ensureScriptContainer(readerContainer, false);
+        scriptContainer.appendChild(toProcess);
+        bindFootnoteInteraction(scriptContainer);
+      }
+    } else if (chapter.content.picInfos) {
+      if (chapter.content.encrypt) {
+        const imgs = [];
+        for (let i2 = 0; i2 < chapter.content.picInfos.length; i2++) {
+          const picInfo = chapter.content.picInfos[i2];
+          const img = document.createElement("img");
+          img.className = "fqa-comic-img fqa-comic-encrypted";
+          img.alt = `第${i2 + 1}页`;
+          img.dataset.encryptedUrl = picInfo.picUrl;
+          img.dataset.encryptKey = chapter.content.encrypt_key;
+          img.dataset.pageIndex = i2.toString();
+          img.style.minHeight = "500px";
+          img.style.backgroundColor = "#f0f0f0";
+          imgs.push(img);
+        }
+        const readerContainer = document.querySelector("div.muye-reader-content:not(.fqa)");
+        if (readerContainer) {
+          const scriptContainer = ensureScriptContainer(readerContainer, true);
+          imgs.forEach((img) => scriptContainer.appendChild(img));
+          const observer2 = new IntersectionObserver(
+            async (entries) => {
+              for (const entry of entries) {
+                if (entry.isIntersecting) {
+                  const img = entry.target;
+                  if (img.dataset.encryptedUrl && img.dataset.encryptKey && !img.src) {
+                    observer2.unobserve(img);
+                    try {
+                      const encryptedBuffer = await fetchArrayBuffer(
+                        img.dataset.encryptedUrl
+                      );
+                      const decryptedBuffer = await decryptComicImage(
+                        encryptedBuffer,
+                        img.dataset.encryptKey
+                      );
+                      const blob = new Blob([decryptedBuffer], { type: "image/jpeg" });
+                      const blobUrl = URL.createObjectURL(blob);
+                      img.src = blobUrl;
+                      img.style.minHeight = "";
+                      img.style.backgroundColor = "";
+                      img.onload = () => {
+                        URL.revokeObjectURL(blobUrl);
+                      };
+                    } catch (error) {
+                      console.error(`解密图片失败 (页 ${img.dataset.pageIndex}):`, error);
+                      img.alt = `第${Number(img.dataset.pageIndex) + 1}页 - 解密失败`;
+                      img.style.backgroundColor = "#ffebee";
+                    }
+                  }
+                }
+              }
+            },
+            {
+              rootMargin: "200px"
+            }
+          );
+          comicObserver = observer2;
+          imgs.forEach((img) => observer2.observe(img));
+        }
+      } else {
+        const imgs = [];
+        for (let i2 = 0; i2 < chapter.content.picInfos.length; i2++) {
+          const picInfo = chapter.content.picInfos[i2];
+          const img = document.createElement("img");
+          img.className = "fqa-comic-img";
+          img.alt = `第${i2 + 1}页`;
+          img.src = picInfo.picUrl;
+          imgs.push(img);
+        }
+        const readerContainer = document.querySelector("div.muye-reader-content:not(.fqa)");
+        if (readerContainer) {
+          const scriptContainer = ensureScriptContainer(readerContainer, true);
+          imgs.forEach((img) => scriptContainer.appendChild(img));
+        }
+      }
+    }
+    const muyeReaderTitle = document.querySelector("h1.muye-reader-title");
+    let muyeReaderSubtitle = document.querySelector("div.muye-reader-subtitle");
+    (_h = document.querySelector("#fqa-subtitle")) == null ? void 0 : _h.remove();
+    if (muyeReaderSubtitle) {
+      let _cloned = cloneElement(muyeReaderSubtitle);
+      muyeReaderSubtitle.classList.add("fqa-hide");
+      _cloned.id = "fqa-subtitle";
+      muyeReaderSubtitle.insertAdjacentElement("afterend", _cloned);
+      muyeReaderSubtitle = _cloned;
+      _cloned.classList.remove("fqa-hide");
+      console.log("clone subtitle: ", _cloned);
+    }
+    if (muyeReaderTitle) {
+      muyeReaderTitle.textContent = chapterTitle;
+    }
+    console.log("Current book:", currentBook);
+    if (!currentBook || currentBook == null || currentBook.book_id !== ((_i = chapter.novel_data) == null ? void 0 : _i.book_id)) {
+      currentBook = await getBookInfoAndCatalog((_j = chapter.novel_data) == null ? void 0 : _j.book_id);
+      console.log("Current book:", currentBook);
+    }
+    if (currentBook && currentBook.chapter_list) {
+      const currentChapterItem = currentBook.chapter_list.find((c) => c.item_id === itemId2);
+      if (currentChapterItem) {
+        console.log("Current chapter:", currentChapterItem);
+        document.title = currentChapterItem.title + " - " + currentBook.title + " - 番茄小说";
+        if (document.getElementById("fqa-current-chapter-volume")) {
+          const c = document.getElementById("fqa-current-chapter-volume");
+          if (c) {
+            c.textContent = currentChapterItem.volume_title;
+          }
+        } else {
+          const volSpan = document.createElement("span");
+          volSpan.className = "desc-item";
+          volSpan.id = "fqa-current-chapter-volume";
+          volSpan.textContent = currentChapterItem.volume_title;
+          const c = muyeReaderSubtitle == null ? void 0 : muyeReaderSubtitle.firstChild;
+          if (c) {
+            c.insertAdjacentElement("beforebegin", volSpan);
+          }
+        }
+        let updateTimeSpans = (muyeReaderSubtitle == null ? void 0 : muyeReaderSubtitle.querySelectorAll("span.desc-item")) || [];
+        if (updateTimeSpans.length >= 2) {
+          let updateTimeSpan = updateTimeSpans[updateTimeSpans.length - 1];
+          let uttspan = updateTimeSpan.firstChild;
+          uttspan == null ? void 0 : uttspan.remove();
+          updateTimeSpan.innerHTML = "更新时间：" + currentChapterItem.update_time;
+        } else {
+          let updateTimeSpan = document.createElement("span");
+          updateTimeSpan.className = "desc-item";
+          updateTimeSpan.textContent = `更新时间：${currentChapterItem.update_time}`;
+        }
+      }
+    }
+    if (state.open) {
+      await switchChapter(itemId2, {
+        cover: (currentBook == null ? void 0 : currentBook.cover_url) ?? "",
+        title: (currentBook == null ? void 0 : currentBook.title) ?? document.title
+      });
+    } else {
+      refreshParagraphs();
+    }
+  }
+  async function startAudioPlay() {
+    var _a;
+    if (state.open) {
+      closeAudiobook();
+      return;
+    }
+    const itemId2 = ((_a = window.location.pathname.split("/").pop()) == null ? void 0 : _a.substring(0, 19)) || "";
+    if (!itemId2) return;
+    initAudioPanel();
+    await openAudiobook(itemId2, (currentBook == null ? void 0 : currentBook.book_id) ?? "", {
+      cover: (currentBook == null ? void 0 : currentBook.cover_url) ?? "",
+      title: (currentBook == null ? void 0 : currentBook.title) ?? document.title
+    });
+  }
+  async function onUrlChange$1(_previous) {
+    await insertContent();
+  }
+  async function onHashChange$1(_previous) {
+  }
+  async function onLoad$1() {
+    var _a;
+    const toolbar = document.querySelector("div.reader-toolbar > div");
+    const toolbarButton = document.querySelector("div.reader-toolbar > div > div:nth-child(3)");
+    if (toolbarButton && toolbar) {
+      const c = cloneElement(toolbarButton);
+      c.id = "fqa-toggle-audiobook";
+      const listenIcon = document.createElement("span");
+      listenIcon.textContent = "听";
+      listenIcon.style.width = "24px";
+      listenIcon.style.height = "24px";
+      listenIcon.style.fontSize = "24px";
+      listenIcon.style.lineHeight = "24px";
+      listenIcon.classList.add("muyeicon-icon");
+      listenIcon.classList.add("reader-toolbar-item-icon");
+      (_a = c.firstChild) == null ? void 0 : _a.replaceWith(listenIcon);
+      const l = c.lastChild;
+      if (l) {
+        l.textContent = "听书";
+      }
+      c.addEventListener("click", () => void startAudioPlay());
+      toolbar.appendChild(c);
+    }
+    document.querySelector("div.muye-reader-btns");
+    await insertContent();
+  }
+  function readerFilter(path, _query, _hash) {
+    return path.startsWith("/reader") || path.startsWith("reader");
+  }
+  const _exports$5 = [
+    {
+      id: "readerHook_load",
+      event: "load",
+      handler: onLoad$1,
+      filter: readerFilter
+    },
+    {
+      id: "readerHook_urlChange",
+      event: "onUrlChange",
+      handler: onUrlChange$1,
+      filter: readerFilter
+    },
+    {
+      id: "readerHook_hashChange",
+      event: "onHashChange",
+      handler: onHashChange$1,
+      filter: readerFilter
+    }
+  ];
+  const blackList = [
+    "mcs.zijieapi.com",
+    "vcs.zijieapi.com/vc/setting",
+    "mon.zijieapi.com",
+    "mssdk.bytedance.com/web/common",
+    "hm.baidu.com"
+  ];
+  const BLOCKED_BODY = JSON.stringify({
+    e: 0,
+    sc: 10,
+    tc: 10
+  });
+  function checkBlack(url) {
+    if (!settings$1.blockReport) return false;
+    return blackList.some((black) => url.includes(black));
+  }
+  const originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
+  unsafeWindow.fetch = function fetch2(input, init2) {
+    let url;
+    if (input instanceof Request) {
+      url = input.url;
+    } else if (input instanceof URL) {
+      url = input.href;
+    } else {
+      url = input;
+    }
+    if (checkBlack(url)) {
+      console.log("blocked request: " + url);
+      return Promise.resolve(new Response(BLOCKED_BODY, {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      }));
+    }
+    return originalFetch(input, init2);
+  };
+  const originalXMLHttpRequest = unsafeWindow.XMLHttpRequest;
+  unsafeWindow.XMLHttpRequest = class XMLHttpRequest extends originalXMLHttpRequest {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "_blockedUrl");
+    }
+    open(method, url, async = true, user, password) {
+      if (checkBlack(url)) {
+        console.log("blocked request: " + url);
+        this._blockedUrl = url;
+        return;
+      }
+      this._blockedUrl = void 0;
+      super.open(method, url, async, user, password);
+    }
+    setRequestHeader(name2, value) {
+      if (this._blockedUrl !== void 0) return;
+      super.setRequestHeader(name2, value);
+    }
+    send(body) {
+      if (this._blockedUrl === void 0) {
+        super.send(body);
+        return;
+      }
+      const url = this._blockedUrl;
+      const shadow = (prop, value) => Object.defineProperty(this, prop, { configurable: true, get: () => value });
+      setTimeout(() => {
+        shadow("readyState", 4);
+        shadow("status", 200);
+        shadow("statusText", "OK");
+        shadow("responseURL", url);
+        shadow("responseText", this.responseType === "" || this.responseType === "text" ? BLOCKED_BODY : "");
+        shadow("response", this.responseType === "json" ? {
+          "e": 0,
+          "sc": 10,
+          "tc": 10
+        } : BLOCKED_BODY);
+        this.dispatchEvent(new Event("readystatechange"));
+        this.dispatchEvent(new ProgressEvent("load"));
+        this.dispatchEvent(new ProgressEvent("loadend"));
+      }, 0);
+    }
+    abort() {
+      if (this._blockedUrl !== void 0) return;
+      super.abort();
+    }
+    getAllResponseHeaders() {
+      if (this._blockedUrl !== void 0) return "content-type: application/json\r\n";
+      return super.getAllResponseHeaders();
+    }
+    getResponseHeader(name2) {
+      if (this._blockedUrl !== void 0) {
+        return name2.toLowerCase() === "content-type" ? "application/json" : null;
+      }
+      return super.getResponseHeader(name2);
+    }
+  };
+  const _exports$4 = [];
+  let userState = {
+    isLogin: false,
+    userInfo: null
+  };
+  if (read("userState")) {
+    userState = read("userState");
+  }
+  console.log("userState:", userState);
+  async function getDetailedUserInfo() {
+    if (!(userState == null ? void 0 : userState.isLogin) || !(userState == null ? void 0 : userState.userInfo)) {
+      return null;
+    }
+    if (userState.userInfo.gender !== void 0 && userState.userInfo.recommend_gender !== void 0 && userState.userInfo.fans_num !== void 0 && userState.userInfo.following_num !== void 0 && userState.userInfo.is_author !== void 0 && userState.userInfo.author_desc !== void 0 && userState.userInfo.read_book_num !== void 0 && userState.userInfo.read_book_time !== void 0) {
+      return userState.userInfo;
+    }
+    const response = await fetch$1("https://fanqienovel.com/reading/user/basic_info/get/v?aid=1967");
+    const j = await response.json();
+    if (j == null ? void 0 : j.data) {
+      const data = j.data;
+      userState.userInfo.gender = data.profile_gender;
+      userState.userInfo.recommend_gender = data.gender;
+      userState.userInfo.fans_num = data.fans_num;
+      userState.userInfo.following_num = data.follow_user_num;
+      userState.userInfo.is_author = data.is_author;
+      userState.userInfo.author_desc = data.author_desc;
+      userState.userInfo.read_book_num = data.read_book_num;
+      userState.userInfo.read_book_time = BigInt(data.read_book_time);
+      return userState.userInfo;
+    }
+    write("userState", userState);
+    return userState.userInfo;
+  }
+  async function checkLogin() {
+    var _a, _b, _c, _d, _e, _f;
+    const response = await fetch$1("https://fanqienovel.com/api/user/info/v2");
+    const j = await response.json();
+    const _userInfo = {
+      id: (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.id,
+      username: (_b = j == null ? void 0 : j.data) == null ? void 0 : _b.name,
+      avatar: (_c = j == null ? void 0 : j.data) == null ? void 0 : _c.avatar,
+      desc: (_d = j == null ? void 0 : j.data) == null ? void 0 : _d.desc,
+      age: (_e = j == null ? void 0 : j.data) == null ? void 0 : _e.age
+    };
+    if (((_f = j == null ? void 0 : j.data) == null ? void 0 : _f.id) > 1) {
+      userState.isLogin = true;
+      userState.userInfo = _userInfo;
+      write("userState", userState);
+      return true;
+    } else {
+      del("userState");
+      return false;
+    }
+  }
+  async function init() {
+    var _a;
+    await checkLogin();
+    if (userState.isLogin) {
+      console.log("Hello, ", (_a = userState == null ? void 0 : userState.userInfo) == null ? void 0 : _a.username);
+    }
+  }
+  const bookshelf = '<svg xmlns="http://www.w3.org/2000/svg"\r\n     width="24"\r\n     height="24"\r\n     viewBox="0 0 24 24"\r\n     fill="none"\r\n     stroke="currentColor"\r\n     stroke-width="1.2"\r\n     stroke-linecap="round"\r\n     stroke-linejoin="round">\r\n  <path d="M3.5 20h17"/>\r\n  <rect x="5" y="7" width="3.5" height="13" rx="0.8"/>\r\n  <rect x="8.5" y="5" width="4" height="15" rx="0.8"/>\r\n  <path d="M15.1 6.2 18 5.5l3.1 13.6-2.9.7z"/>\r\n  <path d="M9.8 8h1.4M6.1 10h1.3M17 8.8l1.3-.3"/>\r\n</svg>';
+  const settings = '<?xml version="1.0" encoding="utf-8"?>\r\n<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M12 8.25C9.92894 8.25 8.25 9.92893 8.25 12C8.25 14.0711 9.92894 15.75 12 15.75C14.0711 15.75 15.75 14.0711 15.75 12C15.75 9.92893 14.0711 8.25 12 8.25ZM9.75 12C9.75 10.7574 10.7574 9.75 12 9.75C13.2426 9.75 14.25 10.7574 14.25 12C14.25 13.2426 13.2426 14.25 12 14.25C10.7574 14.25 9.75 13.2426 9.75 12Z"\r\n        fill="#000000" />\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M11.9747 1.25C11.5303 1.24999 11.1592 1.24999 10.8546 1.27077C10.5375 1.29241 10.238 1.33905 9.94761 1.45933C9.27379 1.73844 8.73843 2.27379 8.45932 2.94762C8.31402 3.29842 8.27467 3.66812 8.25964 4.06996C8.24756 4.39299 8.08454 4.66251 7.84395 4.80141C7.60337 4.94031 7.28845 4.94673 7.00266 4.79568C6.64714 4.60777 6.30729 4.45699 5.93083 4.40743C5.20773 4.31223 4.47642 4.50819 3.89779 4.95219C3.64843 5.14353 3.45827 5.3796 3.28099 5.6434C3.11068 5.89681 2.92517 6.21815 2.70294 6.60307L2.67769 6.64681C2.45545 7.03172 2.26993 7.35304 2.13562 7.62723C1.99581 7.91267 1.88644 8.19539 1.84541 8.50701C1.75021 9.23012 1.94617 9.96142 2.39016 10.5401C2.62128 10.8412 2.92173 11.0602 3.26217 11.2741C3.53595 11.4461 3.68788 11.7221 3.68786 12C3.68785 12.2778 3.53592 12.5538 3.26217 12.7258C2.92169 12.9397 2.62121 13.1587 2.39007 13.4599C1.94607 14.0385 1.75012 14.7698 1.84531 15.4929C1.88634 15.8045 1.99571 16.0873 2.13552 16.3727C2.26983 16.6469 2.45535 16.9682 2.67758 17.3531L2.70284 17.3969C2.92507 17.7818 3.11058 18.1031 3.28089 18.3565C3.45817 18.6203 3.64833 18.8564 3.89769 19.0477C4.47632 19.4917 5.20763 19.6877 5.93073 19.5925C6.30717 19.5429 6.647 19.3922 7.0025 19.2043C7.28833 19.0532 7.60329 19.0596 7.8439 19.1986C8.08452 19.3375 8.24756 19.607 8.25964 19.9301C8.27467 20.3319 8.31403 20.7016 8.45932 21.0524C8.73843 21.7262 9.27379 22.2616 9.94761 22.5407C10.238 22.661 10.5375 22.7076 10.8546 22.7292C11.1592 22.75 11.5303 22.75 11.9747 22.75H12.0252C12.4697 22.75 12.8407 22.75 13.1454 22.7292C13.4625 22.7076 13.762 22.661 14.0524 22.5407C14.7262 22.2616 15.2616 21.7262 15.5407 21.0524C15.686 20.7016 15.7253 20.3319 15.7403 19.93C15.7524 19.607 15.9154 19.3375 16.156 19.1985C16.3966 19.0596 16.7116 19.0532 16.9974 19.2042C17.3529 19.3921 17.6927 19.5429 18.0692 19.5924C18.7923 19.6876 19.5236 19.4917 20.1022 19.0477C20.3516 18.8563 20.5417 18.6203 20.719 18.3565C20.8893 18.1031 21.0748 17.7818 21.297 17.3969L21.3223 17.3531C21.5445 16.9682 21.7301 16.6468 21.8644 16.3726C22.0042 16.0872 22.1135 15.8045 22.1546 15.4929C22.2498 14.7697 22.0538 14.0384 21.6098 13.4598C21.3787 13.1586 21.0782 12.9397 20.7378 12.7258C20.464 12.5538 20.3121 12.2778 20.3121 11.9999C20.3121 11.7221 20.464 11.4462 20.7377 11.2742C21.0783 11.0603 21.3788 10.8414 21.6099 10.5401C22.0539 9.96149 22.2499 9.23019 22.1547 8.50708C22.1136 8.19546 22.0043 7.91274 21.8645 7.6273C21.7302 7.35313 21.5447 7.03183 21.3224 6.64695L21.2972 6.60318C21.0749 6.21825 20.8894 5.89688 20.7191 5.64347C20.5418 5.37967 20.3517 5.1436 20.1023 4.95225C19.5237 4.50826 18.7924 4.3123 18.0692 4.4075C17.6928 4.45706 17.353 4.60782 16.9975 4.79572C16.7117 4.94679 16.3967 4.94036 16.1561 4.80144C15.9155 4.66253 15.7524 4.39297 15.7403 4.06991C15.7253 3.66808 15.686 3.2984 15.5407 2.94762C15.2616 2.27379 14.7262 1.73844 14.0524 1.45933C13.762 1.33905 13.4625 1.29241 13.1454 1.27077C12.8407 1.24999 12.4697 1.24999 12.0252 1.25H11.9747ZM10.5216 2.84515C10.5988 2.81319 10.716 2.78372 10.9567 2.76729C11.2042 2.75041 11.5238 2.75 12 2.75C12.4762 2.75 12.7958 2.75041 13.0432 2.76729C13.284 2.78372 13.4012 2.81319 13.4783 2.84515C13.7846 2.97202 14.028 3.21536 14.1548 3.52165C14.1949 3.61826 14.228 3.76887 14.2414 4.12597C14.271 4.91835 14.68 5.68129 15.4061 6.10048C16.1321 6.51968 16.9974 6.4924 17.6984 6.12188C18.0143 5.9549 18.1614 5.90832 18.265 5.89467C18.5937 5.8514 18.9261 5.94047 19.1891 6.14228C19.2554 6.19312 19.3395 6.27989 19.4741 6.48016C19.6125 6.68603 19.7726 6.9626 20.0107 7.375C20.2488 7.78741 20.4083 8.06438 20.5174 8.28713C20.6235 8.50382 20.6566 8.62007 20.6675 8.70287C20.7108 9.03155 20.6217 9.36397 20.4199 9.62698C20.3562 9.70995 20.2424 9.81399 19.9397 10.0041C19.2684 10.426 18.8122 11.1616 18.8121 11.9999C18.8121 12.8383 19.2683 13.574 19.9397 13.9959C20.2423 14.186 20.3561 14.29 20.4198 14.373C20.6216 14.636 20.7107 14.9684 20.6674 15.2971C20.6565 15.3799 20.6234 15.4961 20.5173 15.7128C20.4082 15.9355 20.2487 16.2125 20.0106 16.6249C19.7725 17.0373 19.6124 17.3139 19.474 17.5198C19.3394 17.72 19.2553 17.8068 19.189 17.8576C18.926 18.0595 18.5936 18.1485 18.2649 18.1053C18.1613 18.0916 18.0142 18.045 17.6983 17.8781C16.9973 17.5075 16.132 17.4803 15.4059 17.8995C14.68 18.3187 14.271 19.0816 14.2414 19.874C14.228 20.2311 14.1949 20.3817 14.1548 20.4784C14.028 20.7846 13.7846 21.028 13.4783 21.1549C13.4012 21.1868 13.284 21.2163 13.0432 21.2327C12.7958 21.2496 12.4762 21.25 12 21.25C11.5238 21.25 11.2042 21.2496 10.9567 21.2327C10.716 21.2163 10.5988 21.1868 10.5216 21.1549C10.2154 21.028 9.97201 20.7846 9.84514 20.4784C9.80512 20.3817 9.77195 20.2311 9.75859 19.874C9.72896 19.0817 9.31997 18.3187 8.5939 17.8995C7.86784 17.4803 7.00262 17.5076 6.30158 17.8781C5.98565 18.0451 5.83863 18.0917 5.73495 18.1053C5.40626 18.1486 5.07385 18.0595 4.81084 17.8577C4.74458 17.8069 4.66045 17.7201 4.52586 17.5198C4.38751 17.314 4.22736 17.0374 3.98926 16.625C3.75115 16.2126 3.59171 15.9356 3.4826 15.7129C3.37646 15.4962 3.34338 15.3799 3.33248 15.2971C3.28921 14.9684 3.37828 14.636 3.5801 14.373C3.64376 14.2901 3.75761 14.186 4.0602 13.9959C4.73158 13.5741 5.18782 12.8384 5.18786 12.0001C5.18791 11.1616 4.73165 10.4259 4.06021 10.004C3.75769 9.81389 3.64385 9.70987 3.58019 9.62691C3.37838 9.3639 3.28931 9.03149 3.33258 8.7028C3.34348 8.62001 3.37656 8.50375 3.4827 8.28707C3.59181 8.06431 3.75125 7.78734 3.98935 7.37493C4.22746 6.96253 4.3876 6.68596 4.52596 6.48009C4.66055 6.27983 4.74468 6.19305 4.81093 6.14222C5.07395 5.9404 5.40636 5.85133 5.73504 5.8946C5.83873 5.90825 5.98576 5.95483 6.30173 6.12184C7.00273 6.49235 7.86791 6.51962 8.59394 6.10045C9.31998 5.68128 9.72896 4.91837 9.75859 4.12602C9.77195 3.76889 9.80512 3.61827 9.84514 3.52165C9.97201 3.21536 10.2154 2.97202 10.5216 2.84515Z"\r\n        fill="#000000" />\r\n</svg>';
   const name = "fanqie-assistant";
   const version = "0.0.6";
   const _hoisted_1$9 = {
@@ -2663,59 +5383,68 @@
   const _hoisted_9$6 = { class: "fqa-set-row" };
   const _hoisted_10$6 = { class: "fqa-set-row fqa-set-row-col" };
   const _hoisted_11$5 = ["disabled"];
-  const _hoisted_12$5 = { class: "fqa-set-row" };
-  const _hoisted_13$4 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_14$4 = {
+  const _hoisted_12$5 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_13$4 = { class: "fqa-set-radios" };
+  const _hoisted_14$4 = { class: "fqa-set-radio" };
+  const _hoisted_15$2 = { class: "fqa-set-radio" };
+  const _hoisted_16$1 = { class: "fqa-set-row" };
+  const _hoisted_17$1 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_18$1 = {
     class: "fqa-set-row",
     style: { "padding-top": "0", "border-bottom": "none" }
   };
-  const _hoisted_15$2 = { class: "fqa-set-row" };
-  const _hoisted_16$1 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_17$1 = { class: "fqa-set-radios" };
-  const _hoisted_18$1 = { class: "fqa-set-radio" };
-  const _hoisted_19$1 = { class: "fqa-set-radio" };
+  const _hoisted_19$1 = { class: "fqa-set-row" };
   const _hoisted_20 = { class: "fqa-set-row fqa-set-row-col" };
   const _hoisted_21 = { class: "fqa-set-radios" };
   const _hoisted_22 = { class: "fqa-set-radio" };
   const _hoisted_23 = { class: "fqa-set-radio" };
   const _hoisted_24 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_25 = {
-    class: "fqa-set-row",
-    style: { "padding-top": "0", "border-bottom": "none" }
-  };
-  const _hoisted_26 = {
-    class: "fqa-set-row",
-    style: { "padding-top": "0", "border-bottom": "none" }
-  };
-  const _hoisted_27 = {
-    class: "fqa-set-row",
-    style: { "padding-top": "0", "border-bottom": "none" }
-  };
+  const _hoisted_25 = { class: "fqa-set-radios" };
+  const _hoisted_26 = { class: "fqa-set-radio" };
+  const _hoisted_27 = { class: "fqa-set-radio" };
   const _hoisted_28 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_29 = { class: "fqa-set-field" };
-  const _hoisted_30 = { class: "fqa-set-field" };
-  const _hoisted_31 = { class: "fqa-set-field" };
+  const _hoisted_29 = {
+    class: "fqa-set-row",
+    style: { "padding-top": "0", "border-bottom": "none" }
+  };
+  const _hoisted_30 = {
+    class: "fqa-set-row",
+    style: { "padding-top": "0", "border-bottom": "none" }
+  };
+  const _hoisted_31 = {
+    class: "fqa-set-row",
+    style: { "padding-top": "0", "border-bottom": "none" }
+  };
   const _hoisted_32 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_33 = { class: "fqa-set-radios" };
-  const _hoisted_34 = { class: "fqa-set-radio" };
-  const _hoisted_35 = { class: "fqa-set-radio" };
+  const _hoisted_33 = { class: "fqa-set-field" };
+  const _hoisted_34 = { class: "fqa-set-field" };
+  const _hoisted_35 = { class: "fqa-set-field" };
   const _hoisted_36 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_37 = { class: "fqa-set-field" };
-  const _hoisted_38 = ["placeholder"];
-  const _hoisted_39 = { class: "fqa-set-field" };
-  const _hoisted_40 = ["placeholder"];
-  const _hoisted_41 = { class: "fqa-set-field" };
-  const _hoisted_42 = ["placeholder"];
-  const _hoisted_43 = { class: "fqa-set-actions" };
-  const _hoisted_44 = ["disabled"];
-  const _hoisted_45 = {
+  const _hoisted_37 = { class: "fqa-set-radios" };
+  const _hoisted_38 = { class: "fqa-set-radio" };
+  const _hoisted_39 = { class: "fqa-set-radio" };
+  const _hoisted_40 = { class: "fqa-set-row" };
+  const _hoisted_41 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_42 = { class: "fqa-set-radios" };
+  const _hoisted_43 = { class: "fqa-set-radio" };
+  const _hoisted_44 = { class: "fqa-set-radio" };
+  const _hoisted_45 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_46 = { class: "fqa-set-field" };
+  const _hoisted_47 = ["placeholder"];
+  const _hoisted_48 = { class: "fqa-set-field" };
+  const _hoisted_49 = ["placeholder"];
+  const _hoisted_50 = { class: "fqa-set-field" };
+  const _hoisted_51 = ["placeholder"];
+  const _hoisted_52 = { class: "fqa-set-actions" };
+  const _hoisted_53 = ["disabled"];
+  const _hoisted_54 = {
     key: 0,
     class: "fqa-set-note"
   };
-  const _hoisted_46 = { class: "fqa-set-note" };
-  const _hoisted_47 = { class: "fqa-set-links" };
-  const _hoisted_48 = { class: "fqa-set-link-row" };
-  const _hoisted_49 = ["href"];
+  const _hoisted_55 = { class: "fqa-set-note" };
+  const _hoisted_56 = { class: "fqa-set-links" };
+  const _hoisted_57 = { class: "fqa-set-link-row" };
+  const _hoisted_58 = ["href"];
   const GREASYFORK = "https://greasyfork.org/zh-CN/scripts/589115-%E7%95%AA%E8%8C%84%E5%B0%8F%E8%AF%B4%E5%8A%A9%E6%89%8B";
   const GITHUB = "https://github.com/naiyQAQ/fanqie-assistant";
   const _sfc_main$9 = /* @__PURE__ */ vue.defineComponent({
@@ -2734,6 +5463,7 @@
         { key: "ui", label: "界面" },
         { key: "search", label: "搜索" },
         { key: "download", label: "下载" },
+        { key: "audiobook", label: "听书" },
         { key: "protocol", label: "协议" },
         { key: "about", label: "关于" }
       ];
@@ -2785,7 +5515,7 @@
               onClick: close2
             }, "✕"),
             vue.createElementVNode("nav", _hoisted_2$9, [
-              _cache[24] || (_cache[24] = vue.createElementVNode("div", { class: "fqa-set-side-title" }, "助手设置", -1)),
+              _cache[29] || (_cache[29] = vue.createElementVNode("div", { class: "fqa-set-side-title" }, "助手设置", -1)),
               (vue.openBlock(), vue.createElementBlock(vue.Fragment, null, vue.renderList(SECTIONS, (s) => {
                 return vue.createElementVNode("div", {
                   key: s.key,
@@ -2799,9 +5529,9 @@
             ]),
             vue.createElementVNode("section", _hoisted_4$8, [
               active.value === "general" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 0 }, [
-                _cache[28] || (_cache[28] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "常规", -1)),
+                _cache[33] || (_cache[33] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "常规", -1)),
                 vue.createElementVNode("label", _hoisted_5$8, [
-                  _cache[25] || (_cache[25] = vue.createElementVNode("span", { class: "fqa-set-label" }, "解密网页端混淆字体", -1)),
+                  _cache[30] || (_cache[30] = vue.createElementVNode("span", { class: "fqa-set-label" }, "解密网页端混淆字体", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => vue.unref(settings$1).decryptFont = $event),
                     type: "checkbox",
@@ -2811,7 +5541,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_6$8, [
-                  _cache[26] || (_cache[26] = vue.createElementVNode("span", { class: "fqa-set-label" }, "拦截网页事件上报", -1)),
+                  _cache[31] || (_cache[31] = vue.createElementVNode("span", { class: "fqa-set-label" }, "拦截网页事件上报", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => vue.unref(settings$1).blockReport = $event),
                     type: "checkbox",
@@ -2821,7 +5551,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_7$6, [
-                  _cache[27] || (_cache[27] = vue.createElementVNode("span", { class: "fqa-set-label" }, "允许阅读器复制文本", -1)),
+                  _cache[32] || (_cache[32] = vue.createElementVNode("span", { class: "fqa-set-label" }, "允许阅读器复制文本", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => vue.unref(settings$1).allowCopy = $event),
                     type: "checkbox",
@@ -2831,9 +5561,9 @@
                   ])
                 ])
               ], 64)) : active.value === "ui" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 1 }, [
-                _cache[33] || (_cache[33] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "界面", -1)),
+                _cache[42] || (_cache[42] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "界面", -1)),
                 vue.createElementVNode("div", _hoisted_8$6, [
-                  _cache[29] || (_cache[29] = vue.createElementVNode("span", { class: "fqa-set-label" }, "阅读器字体", -1)),
+                  _cache[34] || (_cache[34] = vue.createElementVNode("span", { class: "fqa-set-label" }, "阅读器字体", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => vue.unref(settings$1).readerFont = $event),
                     class: "fqa-set-input",
@@ -2842,10 +5572,10 @@
                   }, null, 512), [
                     [vue.vModelText, vue.unref(settings$1).readerFont]
                   ]),
-                  _cache[30] || (_cache[30] = vue.createElementVNode("p", { class: "fqa-set-note" }, "填写字体名称，例如「思源宋体」。留空则跟随网页默认。", -1))
+                  _cache[35] || (_cache[35] = vue.createElementVNode("p", { class: "fqa-set-note" }, "填写字体名称，例如「思源宋体」。留空则跟随网页默认。", -1))
                 ]),
                 vue.createElementVNode("div", _hoisted_9$6, [
-                  _cache[31] || (_cache[31] = vue.createElementVNode("span", { class: "fqa-set-label" }, "自定义 CSS", -1)),
+                  _cache[36] || (_cache[36] = vue.createElementVNode("span", { class: "fqa-set-label" }, "自定义 CSS", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => vue.unref(settings$1).customCssEnabled = $event),
                     type: "checkbox",
@@ -2864,138 +5594,164 @@
                   }, null, 8, _hoisted_11$5), [
                     [vue.vModelText, vue.unref(settings$1).customCss]
                   ]),
-                  _cache[32] || (_cache[32] = vue.createElementVNode("p", { class: "fqa-set-note" }, "关闭开关后内容会保留，只是不再应用。", -1))
+                  _cache[37] || (_cache[37] = vue.createElementVNode("p", { class: "fqa-set-note" }, "关闭开关后内容会保留，只是不再应用。", -1))
+                ]),
+                vue.createElementVNode("div", _hoisted_12$5, [
+                  _cache[40] || (_cache[40] = vue.createElementVNode("span", { class: "fqa-set-label" }, "书架单击书本", -1)),
+                  vue.createElementVNode("div", _hoisted_13$4, [
+                    vue.createElementVNode("label", _hoisted_14$4, [
+                      vue.withDirectives(vue.createElementVNode("input", {
+                        "onUpdate:modelValue": _cache[6] || (_cache[6] = ($event) => vue.unref(settings$1).bookshelfClickAction = $event),
+                        type: "radio",
+                        value: "read"
+                      }, null, 512), [
+                        [vue.vModelRadio, vue.unref(settings$1).bookshelfClickAction]
+                      ]),
+                      _cache[38] || (_cache[38] = vue.createElementVNode("span", null, "继续阅读", -1))
+                    ]),
+                    vue.createElementVNode("label", _hoisted_15$2, [
+                      vue.withDirectives(vue.createElementVNode("input", {
+                        "onUpdate:modelValue": _cache[7] || (_cache[7] = ($event) => vue.unref(settings$1).bookshelfClickAction = $event),
+                        type: "radio",
+                        value: "detail"
+                      }, null, 512), [
+                        [vue.vModelRadio, vue.unref(settings$1).bookshelfClickAction]
+                      ]),
+                      _cache[39] || (_cache[39] = vue.createElementVNode("span", null, "查看详情", -1))
+                    ])
+                  ]),
+                  _cache[41] || (_cache[41] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 按住 Ctrl 单击去往另一项；中键在新标签页打开，Ctrl+中键同样反向。 选「继续阅读」但这本书还没读过时，会退回详情页。 ", -1))
                 ])
               ], 64)) : active.value === "search" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 2 }, [
-                _cache[37] || (_cache[37] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "搜索", -1)),
-                vue.createElementVNode("label", _hoisted_12$5, [
-                  _cache[34] || (_cache[34] = vue.createElementVNode("span", { class: "fqa-set-label" }, "接管搜索界面", -1)),
+                _cache[46] || (_cache[46] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "搜索", -1)),
+                vue.createElementVNode("label", _hoisted_16$1, [
+                  _cache[43] || (_cache[43] = vue.createElementVNode("span", { class: "fqa-set-label" }, "接管搜索界面", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[6] || (_cache[6] = ($event) => vue.unref(settings$1).enhanceSearch = $event),
+                    "onUpdate:modelValue": _cache[8] || (_cache[8] = ($event) => vue.unref(settings$1).enhanceSearch = $event),
                     type: "checkbox",
                     class: "fqa-set-switch"
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).enhanceSearch]
                   ])
                 ]),
-                vue.createElementVNode("div", _hoisted_13$4, [
-                  vue.createElementVNode("label", _hoisted_14$4, [
-                    _cache[35] || (_cache[35] = vue.createElementVNode("span", { class: "fqa-set-label" }, "个人化推荐", -1)),
+                vue.createElementVNode("div", _hoisted_17$1, [
+                  vue.createElementVNode("label", _hoisted_18$1, [
+                    _cache[44] || (_cache[44] = vue.createElementVNode("span", { class: "fqa-set-label" }, "个人化推荐", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[7] || (_cache[7] = ($event) => vue.unref(settings$1).searchPersonalized = $event),
+                      "onUpdate:modelValue": _cache[9] || (_cache[9] = ($event) => vue.unref(settings$1).searchPersonalized = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).searchPersonalized]
                     ])
                   ]),
-                  _cache[36] || (_cache[36] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。 凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。 ", -1))
+                  _cache[45] || (_cache[45] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。 凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。 ", -1))
                 ])
               ], 64)) : active.value === "download" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 3 }, [
-                _cache[58] || (_cache[58] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "下载", -1)),
-                vue.createElementVNode("label", _hoisted_15$2, [
-                  _cache[38] || (_cache[38] = vue.createElementVNode("span", { class: "fqa-set-label" }, "显示下载入口", -1)),
+                _cache[67] || (_cache[67] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "下载", -1)),
+                vue.createElementVNode("label", _hoisted_19$1, [
+                  _cache[47] || (_cache[47] = vue.createElementVNode("span", { class: "fqa-set-label" }, "显示下载入口", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[8] || (_cache[8] = ($event) => vue.unref(settings$1).enableDownload = $event),
+                    "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => vue.unref(settings$1).enableDownload = $event),
                     type: "checkbox",
                     class: "fqa-set-switch"
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).enableDownload]
                   ])
                 ]),
-                vue.createElementVNode("div", _hoisted_16$1, [
-                  _cache[41] || (_cache[41] = vue.createElementVNode("span", { class: "fqa-set-label" }, "默认格式", -1)),
-                  vue.createElementVNode("div", _hoisted_17$1, [
-                    vue.createElementVNode("label", _hoisted_18$1, [
+                vue.createElementVNode("div", _hoisted_20, [
+                  _cache[50] || (_cache[50] = vue.createElementVNode("span", { class: "fqa-set-label" }, "默认格式", -1)),
+                  vue.createElementVNode("div", _hoisted_21, [
+                    vue.createElementVNode("label", _hoisted_22, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[9] || (_cache[9] = ($event) => vue.unref(settings$1).downloadFormat = $event),
+                        "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => vue.unref(settings$1).downloadFormat = $event),
                         type: "radio",
                         value: "epub"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadFormat]
                       ]),
-                      _cache[39] || (_cache[39] = vue.createElementVNode("span", null, "EPUB", -1))
+                      _cache[48] || (_cache[48] = vue.createElementVNode("span", null, "EPUB", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_19$1, [
+                    vue.createElementVNode("label", _hoisted_23, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => vue.unref(settings$1).downloadFormat = $event),
+                        "onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => vue.unref(settings$1).downloadFormat = $event),
                         type: "radio",
                         value: "txt"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadFormat]
                       ]),
-                      _cache[40] || (_cache[40] = vue.createElementVNode("span", null, "TXT", -1))
+                      _cache[49] || (_cache[49] = vue.createElementVNode("span", null, "TXT", -1))
                     ])
                   ]),
-                  _cache[42] || (_cache[42] = vue.createElementVNode("p", { class: "fqa-set-note" }, " EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。 ", -1))
+                  _cache[51] || (_cache[51] = vue.createElementVNode("p", { class: "fqa-set-note" }, " EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。 ", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_20, [
-                  _cache[45] || (_cache[45] = vue.createElementVNode("span", { class: "fqa-set-label" }, "TXT 编码", -1)),
-                  vue.createElementVNode("div", _hoisted_21, [
-                    vue.createElementVNode("label", _hoisted_22, [
+                vue.createElementVNode("div", _hoisted_24, [
+                  _cache[54] || (_cache[54] = vue.createElementVNode("span", { class: "fqa-set-label" }, "TXT 编码", -1)),
+                  vue.createElementVNode("div", _hoisted_25, [
+                    vue.createElementVNode("label", _hoisted_26, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => vue.unref(settings$1).downloadCharset = $event),
+                        "onUpdate:modelValue": _cache[13] || (_cache[13] = ($event) => vue.unref(settings$1).downloadCharset = $event),
                         type: "radio",
                         value: "utf-8"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadCharset]
                       ]),
-                      _cache[43] || (_cache[43] = vue.createElementVNode("span", null, "UTF-8", -1))
+                      _cache[52] || (_cache[52] = vue.createElementVNode("span", null, "UTF-8", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_23, [
+                    vue.createElementVNode("label", _hoisted_27, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => vue.unref(settings$1).downloadCharset = $event),
+                        "onUpdate:modelValue": _cache[14] || (_cache[14] = ($event) => vue.unref(settings$1).downloadCharset = $event),
                         type: "radio",
                         value: "gbk"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadCharset]
                       ]),
-                      _cache[44] || (_cache[44] = vue.createElementVNode("span", null, "GBK", -1))
+                      _cache[53] || (_cache[53] = vue.createElementVNode("span", null, "GBK", -1))
                     ])
                   ]),
-                  _cache[46] || (_cache[46] = vue.createElementVNode("p", { class: "fqa-set-note" }, "EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。", -1))
+                  _cache[55] || (_cache[55] = vue.createElementVNode("p", { class: "fqa-set-note" }, "EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_24, [
-                  _cache[50] || (_cache[50] = vue.createElementVNode("span", { class: "fqa-set-label" }, "EPUB 选项", -1)),
-                  vue.createElementVNode("label", _hoisted_25, [
-                    _cache[47] || (_cache[47] = vue.createElementVNode("span", { class: "fqa-set-label" }, "下载正文插图", -1)),
+                vue.createElementVNode("div", _hoisted_28, [
+                  _cache[59] || (_cache[59] = vue.createElementVNode("span", { class: "fqa-set-label" }, "EPUB 选项", -1)),
+                  vue.createElementVNode("label", _hoisted_29, [
+                    _cache[56] || (_cache[56] = vue.createElementVNode("span", { class: "fqa-set-label" }, "下载正文插图", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[13] || (_cache[13] = ($event) => vue.unref(settings$1).downloadImages = $event),
+                      "onUpdate:modelValue": _cache[15] || (_cache[15] = ($event) => vue.unref(settings$1).downloadImages = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadImages]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_26, [
-                    _cache[48] || (_cache[48] = vue.createElementVNode("span", { class: "fqa-set-label" }, "保留书籍排版样式", -1)),
+                  vue.createElementVNode("label", _hoisted_30, [
+                    _cache[57] || (_cache[57] = vue.createElementVNode("span", { class: "fqa-set-label" }, "保留书籍排版样式", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[14] || (_cache[14] = ($event) => vue.unref(settings$1).downloadBookCss = $event),
+                      "onUpdate:modelValue": _cache[16] || (_cache[16] = ($event) => vue.unref(settings$1).downloadBookCss = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadBookCss]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_27, [
-                    _cache[49] || (_cache[49] = vue.createElementVNode("span", { class: "fqa-set-label" }, "为每卷生成卷页", -1)),
+                  vue.createElementVNode("label", _hoisted_31, [
+                    _cache[58] || (_cache[58] = vue.createElementVNode("span", { class: "fqa-set-label" }, "为每卷生成卷页", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[15] || (_cache[15] = ($event) => vue.unref(settings$1).downloadVolumePage = $event),
+                      "onUpdate:modelValue": _cache[17] || (_cache[17] = ($event) => vue.unref(settings$1).downloadVolumePage = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadVolumePage]
                     ])
                   ]),
-                  _cache[51] || (_cache[51] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。 ", -1))
+                  _cache[60] || (_cache[60] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。 ", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_28, [
-                  _cache[55] || (_cache[55] = vue.createElementVNode("span", { class: "fqa-set-label" }, "请求节奏", -1)),
-                  _cache[56] || (_cache[56] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。 ", -1)),
-                  vue.createElementVNode("label", _hoisted_29, [
-                    _cache[52] || (_cache[52] = vue.createElementVNode("span", null, "每批章节数（1-30）", -1)),
+                vue.createElementVNode("div", _hoisted_32, [
+                  _cache[64] || (_cache[64] = vue.createElementVNode("span", { class: "fqa-set-label" }, "请求节奏", -1)),
+                  _cache[65] || (_cache[65] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。 ", -1)),
+                  vue.createElementVNode("label", _hoisted_33, [
+                    _cache[61] || (_cache[61] = vue.createElementVNode("span", null, "每批章节数（1-30）", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[16] || (_cache[16] = ($event) => vue.unref(settings$1).downloadBatchSize = $event),
+                      "onUpdate:modelValue": _cache[18] || (_cache[18] = ($event) => vue.unref(settings$1).downloadBatchSize = $event),
                       class: "fqa-set-input",
                       type: "number",
                       min: "1",
@@ -3009,10 +5765,10 @@
                       ]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_30, [
-                    _cache[53] || (_cache[53] = vue.createElementVNode("span", null, "批次间隔 (ms)", -1)),
+                  vue.createElementVNode("label", _hoisted_34, [
+                    _cache[62] || (_cache[62] = vue.createElementVNode("span", null, "批次间隔 (ms)", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[17] || (_cache[17] = ($event) => vue.unref(settings$1).downloadInterval = $event),
+                      "onUpdate:modelValue": _cache[19] || (_cache[19] = ($event) => vue.unref(settings$1).downloadInterval = $event),
                       class: "fqa-set-input",
                       type: "number",
                       min: "0",
@@ -3027,10 +5783,10 @@
                       ]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_31, [
-                    _cache[54] || (_cache[54] = vue.createElementVNode("span", null, "重试轮数", -1)),
+                  vue.createElementVNode("label", _hoisted_35, [
+                    _cache[63] || (_cache[63] = vue.createElementVNode("span", null, "重试轮数", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[18] || (_cache[18] = ($event) => vue.unref(settings$1).downloadRetries = $event),
+                      "onUpdate:modelValue": _cache[20] || (_cache[20] = ($event) => vue.unref(settings$1).downloadRetries = $event),
                       class: "fqa-set-input",
                       type: "number",
                       min: "0",
@@ -3044,7 +5800,7 @@
                       ]
                     ])
                   ]),
-                  _cache[57] || (_cache[57] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。 ", -1)),
+                  _cache[66] || (_cache[66] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。 ", -1)),
                   vue.createElementVNode("div", { class: "fqa-set-actions" }, [
                     vue.createElementVNode("button", {
                       class: "fqa-set-btn",
@@ -3052,85 +5808,124 @@
                     }, "恢复推荐值")
                   ])
                 ])
-              ], 64)) : active.value === "protocol" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 4 }, [
-                _cache[68] || (_cache[68] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "协议", -1)),
-                vue.createElementVNode("div", _hoisted_32, [
-                  _cache[61] || (_cache[61] = vue.createElementVNode("span", { class: "fqa-set-label" }, "API 偏好", -1)),
-                  vue.createElementVNode("div", _hoisted_33, [
-                    vue.createElementVNode("label", _hoisted_34, [
+              ], 64)) : active.value === "audiobook" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 4 }, [
+                _cache[73] || (_cache[73] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "听书", -1)),
+                vue.createElementVNode("div", _hoisted_36, [
+                  _cache[70] || (_cache[70] = vue.createElementVNode("span", { class: "fqa-set-label" }, "读完一章后", -1)),
+                  vue.createElementVNode("div", _hoisted_37, [
+                    vue.createElementVNode("label", _hoisted_38, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[19] || (_cache[19] = ($event) => vue.unref(settings$1).apiPreference = $event),
+                        "onUpdate:modelValue": _cache[21] || (_cache[21] = ($event) => vue.unref(settings$1).audiobookChapterEnd = $event),
+                        type: "radio",
+                        value: "next"
+                      }, null, 512), [
+                        [vue.vModelRadio, vue.unref(settings$1).audiobookChapterEnd]
+                      ]),
+                      _cache[68] || (_cache[68] = vue.createElementVNode("span", null, "自动下一章", -1))
+                    ]),
+                    vue.createElementVNode("label", _hoisted_39, [
+                      vue.withDirectives(vue.createElementVNode("input", {
+                        "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => vue.unref(settings$1).audiobookChapterEnd = $event),
+                        type: "radio",
+                        value: "stop"
+                      }, null, 512), [
+                        [vue.vModelRadio, vue.unref(settings$1).audiobookChapterEnd]
+                      ]),
+                      _cache[69] || (_cache[69] = vue.createElementVNode("span", null, "停止播放", -1))
+                    ])
+                  ]),
+                  _cache[71] || (_cache[71] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 自动下一章会点击页面上的「下一章」，读到全书最后一章时自动停下。 ", -1))
+                ]),
+                vue.createElementVNode("label", _hoisted_40, [
+                  _cache[72] || (_cache[72] = vue.createElementVNode("span", { class: "fqa-set-label" }, "高亮并跟随朗读段落", -1)),
+                  vue.withDirectives(vue.createElementVNode("input", {
+                    "onUpdate:modelValue": _cache[23] || (_cache[23] = ($event) => vue.unref(settings$1).audiobookFollow = $event),
+                    type: "checkbox",
+                    class: "fqa-set-switch"
+                  }, null, 512), [
+                    [vue.vModelCheckbox, vue.unref(settings$1).audiobookFollow]
+                  ])
+                ]),
+                _cache[74] || (_cache[74] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 关闭后仍会高亮当前段落，但不再自动滚动页面。点击任意段落可跳到该处朗读。 ", -1))
+              ], 64)) : active.value === "protocol" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 5 }, [
+                _cache[84] || (_cache[84] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "协议", -1)),
+                vue.createElementVNode("div", _hoisted_41, [
+                  _cache[77] || (_cache[77] = vue.createElementVNode("span", { class: "fqa-set-label" }, "API 偏好", -1)),
+                  vue.createElementVNode("div", _hoisted_42, [
+                    vue.createElementVNode("label", _hoisted_43, [
+                      vue.withDirectives(vue.createElementVNode("input", {
+                        "onUpdate:modelValue": _cache[24] || (_cache[24] = ($event) => vue.unref(settings$1).apiPreference = $event),
                         type: "radio",
                         value: "app"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).apiPreference]
                       ]),
-                      _cache[59] || (_cache[59] = vue.createElementVNode("span", null, "番茄 APP", -1))
+                      _cache[75] || (_cache[75] = vue.createElementVNode("span", null, "番茄 APP", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_35, [
+                    vue.createElementVNode("label", _hoisted_44, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[20] || (_cache[20] = ($event) => vue.unref(settings$1).apiPreference = $event),
+                        "onUpdate:modelValue": _cache[25] || (_cache[25] = ($event) => vue.unref(settings$1).apiPreference = $event),
                         type: "radio",
                         value: "redcandle"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).apiPreference]
                       ]),
-                      _cache[60] || (_cache[60] = vue.createElementVNode("span", null, "红烛 APP", -1))
+                      _cache[76] || (_cache[76] = vue.createElementVNode("span", null, "红烛 APP", -1))
                     ])
                   ]),
-                  _cache[62] || (_cache[62] = vue.createElementVNode("p", { class: "fqa-set-note" }, "如果某协议数据不全，脚本可能会选择其他接口作为补充。", -1))
+                  _cache[78] || (_cache[78] = vue.createElementVNode("p", { class: "fqa-set-note" }, "如果某协议数据不全，脚本可能会选择其他接口作为补充。", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_36, [
-                  _cache[66] || (_cache[66] = vue.createElementVNode("span", { class: "fqa-set-label" }, "设备信息", -1)),
-                  _cache[67] || (_cache[67] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。 ", -1)),
-                  vue.createElementVNode("label", _hoisted_37, [
-                    _cache[63] || (_cache[63] = vue.createElementVNode("span", null, "device_id", -1)),
+                vue.createElementVNode("div", _hoisted_45, [
+                  _cache[82] || (_cache[82] = vue.createElementVNode("span", { class: "fqa-set-label" }, "设备信息", -1)),
+                  _cache[83] || (_cache[83] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。 ", -1)),
+                  vue.createElementVNode("label", _hoisted_46, [
+                    _cache[79] || (_cache[79] = vue.createElementVNode("span", null, "device_id", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[21] || (_cache[21] = ($event) => vue.unref(settings$1).deviceId = $event),
+                      "onUpdate:modelValue": _cache[26] || (_cache[26] = ($event) => vue.unref(settings$1).deviceId = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.device_id || "自动注册"
-                    }, null, 8, _hoisted_38), [
+                    }, null, 8, _hoisted_47), [
                       [vue.vModelText, vue.unref(settings$1).deviceId]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_39, [
-                    _cache[64] || (_cache[64] = vue.createElementVNode("span", null, "install_id (iid)", -1)),
+                  vue.createElementVNode("label", _hoisted_48, [
+                    _cache[80] || (_cache[80] = vue.createElementVNode("span", null, "install_id (iid)", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => vue.unref(settings$1).installId = $event),
+                      "onUpdate:modelValue": _cache[27] || (_cache[27] = ($event) => vue.unref(settings$1).installId = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.install_id || "自动注册"
-                    }, null, 8, _hoisted_40), [
+                    }, null, 8, _hoisted_49), [
                       [vue.vModelText, vue.unref(settings$1).installId]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_41, [
-                    _cache[65] || (_cache[65] = vue.createElementVNode("span", null, "device_type", -1)),
+                  vue.createElementVNode("label", _hoisted_50, [
+                    _cache[81] || (_cache[81] = vue.createElementVNode("span", null, "device_type", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[23] || (_cache[23] = ($event) => vue.unref(settings$1).deviceType = $event),
+                      "onUpdate:modelValue": _cache[28] || (_cache[28] = ($event) => vue.unref(settings$1).deviceType = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.device_type || "自动注册"
-                    }, null, 8, _hoisted_42), [
+                    }, null, 8, _hoisted_51), [
                       [vue.vModelText, vue.unref(settings$1).deviceType]
                     ])
                   ]),
-                  vue.createElementVNode("div", _hoisted_43, [
+                  vue.createElementVNode("div", _hoisted_52, [
                     vue.createElementVNode("button", {
                       class: "fqa-set-btn",
                       disabled: registering.value,
                       onClick: reRegister
-                    }, vue.toDisplayString(registering.value ? "注册中…" : "重新注册"), 9, _hoisted_44),
-                    registerMsg.value ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_45, vue.toDisplayString(registerMsg.value), 1)) : vue.createCommentVNode("", true)
+                    }, vue.toDisplayString(registering.value ? "注册中…" : "重新注册"), 9, _hoisted_53),
+                    registerMsg.value ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_54, vue.toDisplayString(registerMsg.value), 1)) : vue.createCommentVNode("", true)
                   ])
                 ])
-              ], 64)) : (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 5 }, [
-                _cache[73] || (_cache[73] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "关于", -1)),
-                vue.createElementVNode("p", _hoisted_46, "番茄小说助手 v" + vue.toDisplayString(vue.unref(version)), 1),
-                vue.createElementVNode("div", _hoisted_47, [
+              ], 64)) : (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 6 }, [
+                _cache[89] || (_cache[89] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "关于", -1)),
+                vue.createElementVNode("p", _hoisted_55, "番茄小说助手 v" + vue.toDisplayString(vue.unref(version)), 1),
+                vue.createElementVNode("div", _hoisted_56, [
                   vue.createElementVNode("div", { class: "fqa-set-link-row" }, [
-                    _cache[69] || (_cache[69] = vue.createElementVNode("span", null, "GreasyFork 地址：", -1)),
+                    _cache[85] || (_cache[85] = vue.createElementVNode("span", null, "GreasyFork 地址：", -1)),
                     vue.createElementVNode("a", {
                       href: GREASYFORK,
                       target: "_blank",
@@ -3138,31 +5933,31 @@
                     }, "跳转")
                   ]),
                   vue.createElementVNode("div", { class: "fqa-set-link-row" }, [
-                    _cache[70] || (_cache[70] = vue.createElementVNode("span", null, "GitHub 地址：", -1)),
+                    _cache[86] || (_cache[86] = vue.createElementVNode("span", null, "GitHub 地址：", -1)),
                     vue.createElementVNode("a", {
                       href: GITHUB,
                       target: "_blank",
                       rel: "noreferrer noopener"
                     }, "跳转")
                   ]),
-                  vue.createElementVNode("div", _hoisted_48, [
-                    _cache[72] || (_cache[72] = vue.createElementVNode("span", null, "问题反馈：", -1)),
+                  vue.createElementVNode("div", _hoisted_57, [
+                    _cache[88] || (_cache[88] = vue.createElementVNode("span", null, "问题反馈：", -1)),
                     vue.createElementVNode("a", {
                       href: FEEDBACK,
                       target: "_blank",
                       rel: "noreferrer noopener"
                     }, "GreasyFork"),
                     vue.createElementVNode("span", null, [
-                      _cache[71] || (_cache[71] = vue.createTextVNode(" 或 ", -1)),
+                      _cache[87] || (_cache[87] = vue.createTextVNode(" 或 ", -1)),
                       vue.createElementVNode("a", {
                         href: `${GITHUB}/issues`,
                         target: "_blank",
                         rel: "noreferrer noopener"
-                      }, " GitHub Issues ", 8, _hoisted_49)
+                      }, " GitHub Issues ", 8, _hoisted_58)
                     ])
                   ])
                 ]),
-                _cache[74] || (_cache[74] = vue.createElementVNode("div", { class: "fqa-set-license" }, [
+                _cache[90] || (_cache[90] = vue.createElementVNode("div", { class: "fqa-set-license" }, [
                   vue.createElementVNode("p", null, " 本脚本基于 GNU General Public License 3.0 授权，完全开源且免费，修改/二次开发请注意遵守开源协议。 "),
                   vue.createElementVNode("p", null, "本脚本使用 TypeScript + Vue 开发，请避免直接修改编译产物。")
                 ], -1))
@@ -3338,7 +6133,32 @@
       handler: guestHook
     }
   ];
-  const _hoisted_1$8 = ["aria-label"];
+  const MIDDLE_BUTTON = 1;
+  function modifiersOf(event) {
+    return {
+      flip: event.ctrlKey || event.metaKey,
+      newTab: "button" in event && event.button === MIDDLE_BUTTON
+    };
+  }
+  function isMiddleButton(event) {
+    return event.button === MIDDLE_BUTTON;
+  }
+  function readerUrl(chapterId) {
+    return `https://fanqienovel.com/reader/${chapterId}`;
+  }
+  function bookPageUrl(bookId2) {
+    return `https://fanqienovel.com/page/${bookId2}`;
+  }
+  function openUrl(url, newTab = false) {
+    if (!newTab) {
+      unsafeWindow.location.href = url;
+      return;
+    }
+    if (!unsafeWindow.open(url, "_blank")) {
+      console.warn("[fqa:nav] 新标签页被拦截，请检查浏览器的弹窗设置:", url);
+    }
+  }
+  const _hoisted_1$8 = ["aria-label", "onKeydown"];
   const _hoisted_2$8 = { class: "fqa-cover" };
   const _hoisted_3$8 = ["src", "alt"];
   const _hoisted_4$7 = {
@@ -3391,6 +6211,17 @@
         event.preventDefault();
         emit("contextmenu", { entry: props.entry, x: event.clientX, y: event.clientY });
       }
+      function open2(event) {
+        emit("open", { entry: props.entry, mods: modifiersOf(event) });
+      }
+      function onAuxClick(event) {
+        if (!isMiddleButton(event)) return;
+        event.preventDefault();
+        open2(event);
+      }
+      function onMouseDown(event) {
+        if (isMiddleButton(event)) event.preventDefault();
+      }
       const imgLoaded = vue.ref(false);
       vue.watch(
         () => {
@@ -3433,19 +6264,21 @@
           onMouseenter: onEnter2,
           onMouseleave: _cache[2] || (_cache[2] = ($event) => emit("leave")),
           onContextmenu: onContextMenu,
-          onClick: _cache[3] || (_cache[3] = ($event) => emit("open", __props.entry)),
+          onClick: open2,
+          onAuxclick: onAuxClick,
+          onMousedown: onMouseDown,
           onKeydown: [
-            _cache[4] || (_cache[4] = vue.withKeys(vue.withModifiers(($event) => emit("open", __props.entry), ["prevent"]), ["enter"])),
-            _cache[5] || (_cache[5] = vue.withKeys(vue.withModifiers(($event) => emit("open", __props.entry), ["prevent"]), ["space"]))
+            vue.withKeys(vue.withModifiers(open2, ["prevent"]), ["enter"]),
+            vue.withKeys(vue.withModifiers(open2, ["prevent"]), ["space"])
           ]
         }, [
           !detail.value ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 0 }, [
-            _cache[6] || (_cache[6] = vue.createElementVNode("div", { class: "fqa-sk-cover fqa-sk-anim" }, null, -1)),
-            _cache[7] || (_cache[7] = vue.createElementVNode("div", {
+            _cache[3] || (_cache[3] = vue.createElementVNode("div", { class: "fqa-sk-cover fqa-sk-anim" }, null, -1)),
+            _cache[4] || (_cache[4] = vue.createElementVNode("div", {
               class: "fqa-sk-line fqa-sk-anim",
               style: { "width": "90%" }
             }, null, -1)),
-            _cache[8] || (_cache[8] = vue.createElementVNode("div", {
+            _cache[5] || (_cache[5] = vue.createElementVNode("div", {
               class: "fqa-sk-line fqa-sk-anim",
               style: { "width": "55%" }
             }, null, -1))
@@ -3990,10 +6823,10 @@
     }
     return results;
   }
-  function identify(bookId, modifyTime = 0) {
+  function identify(bookId2, modifyTime = 0) {
     return {
       asterisked: false,
-      book_id: bookId,
+      book_id: bookId2,
       book_type: 0,
       modify_time: modifyTime
     };
@@ -4011,23 +6844,23 @@
     }
     return json;
   }
-  async function addToBookshelf(bookId) {
+  async function addToBookshelf(bookId2) {
     await shelfPost("/add", {
       add_book_source: 0,
-      identify_data: [identify(bookId)]
+      identify_data: [identify(bookId2)]
     });
   }
-  async function removeFromBookshelf(bookId) {
+  async function removeFromBookshelf(bookId2) {
     await shelfPost("/delete", {
-      identify_data: [identify(bookId, Date.now())]
+      identify_data: [identify(bookId2, Date.now())]
     });
   }
-  async function moveToGroup(bookId, groupName) {
+  async function moveToGroup(bookId2, groupName) {
     await shelfPost("/update", {
       book_data: [
         {
           asterisked: false,
-          book_id: bookId,
+          book_id: bookId2,
           book_type: 0,
           group_name: groupName,
           has_shown: false,
@@ -4254,7 +7087,7 @@
   function hasContent(chapter) {
     return Boolean(chapter == null ? void 0 : chapter.content) && chapter.content !== "Invalid";
   }
-  async function fetchChapters(itemIds, bookId, task, options = {}) {
+  async function fetchChapters(itemIds, bookId2, task, options = {}) {
     var _a;
     const batchSize = Math.min(
       Math.max(1, options.batchSize ?? settings$1.downloadBatchSize),
@@ -4277,13 +7110,13 @@
         task.throwIfCancelled();
         const batch = batches[i2];
         try {
-          const result = await getChapters(batch, bookId);
-          for (const itemId of batch) {
-            const chapter = result[itemId];
+          const result = await getChapters(batch, bookId2);
+          for (const itemId2 of batch) {
+            const chapter = result[itemId2];
             if (hasContent(chapter)) {
-              chapters[itemId] = chapter;
+              chapters[itemId2] = chapter;
             } else {
-              missed.push(itemId);
+              missed.push(itemId2);
             }
           }
         } catch (err) {
@@ -5519,10 +8352,10 @@ ${body}
     }
     return void 0;
   }
-  async function resolveMeta(bookId, chapters) {
+  async function resolveMeta(bookId2, chapters) {
     var _a;
     try {
-      const raw = await getBookInfoRaw(bookId);
+      const raw = await getBookInfoRaw(bookId2);
       if (raw == null ? void 0 : raw.book_id) return toBookMeta(raw);
     } catch (err) {
       console.warn("[fqa:download] 获取书籍详情失败，改用章节里的信息:", err);
@@ -5531,9 +8364,9 @@ ${body}
       var _a2;
       return (_a2 = c.novel_data) == null ? void 0 : _a2.book_id;
     })) == null ? void 0 : _a.novel_data;
-    return toBookMeta(fallback ?? { book_id: bookId });
+    return toBookMeta(fallback ?? { book_id: bookId2 });
   }
-  async function startDownload(bookId, options = {}) {
+  async function startDownload(bookId2, options = {}) {
     if (running) {
       console.warn("[fqa:download] 已有下载任务在进行");
       return;
@@ -5544,16 +8377,16 @@ ${body}
     setActiveTask(task);
     try {
       task.stage("获取目录…");
-      const catalogResult = await getCatalog(bookId);
+      const catalogResult = await getCatalog(bookId2);
       const catalog = catalogResult.chapter_list;
       if (catalog.length === 0) throw new Error("目录为空");
       task.throwIfCancelled();
       const titleMap = new Map(catalog.map((item) => [item.item_id, item.title]));
       const { chapters, failed } = await fetchChapters(
         catalog.map((item) => item.item_id),
-        bookId,
+        bookId2,
         task,
-        { titleOf: (itemId) => titleMap.get(itemId) }
+        { titleOf: (itemId2) => titleMap.get(itemId2) }
       );
       task.throwIfCancelled();
       if (Object.keys(chapters).length === 0) {
@@ -5562,9 +8395,9 @@ ${body}
       if (failed.length > 0) {
         console.warn(`[fqa:download] ${failed.length} 章缺失，仍然继续导出`);
       }
-      const meta = await resolveMeta(bookId, chapters);
+      const meta = await resolveMeta(bookId2, chapters);
       task.throwIfCancelled();
-      const base = sanitizeFilename(`${meta.title}_${meta.author}`, bookId);
+      const base = sanitizeFilename(`${meta.title}_${meta.author}`, bookId2);
       if (format === "epub") {
         const blob = await buildEpub({
           meta,
@@ -5787,12 +8620,16 @@ ${body}
       function onGroupVisible(entries) {
         queueDetails(entries);
       }
-      function openBook(entry) {
+      function continueReadingUrl(entry) {
         var _a;
-        hideHover(true);
         const chapterId = ((_a = entry.detail) == null ? void 0 : _a.current_chapter_id) || entry.item.last_read_chapter_id;
-        const url = chapterId && chapterId !== "0" ? `https://fanqienovel.com/reader/${chapterId}` : `https://fanqienovel.com/page/${entry.item.book_id}`;
-        unsafeWindow.location.href = url;
+        return chapterId && chapterId !== "0" ? readerUrl(chapterId) : null;
+      }
+      function openBook({ entry, mods }) {
+        hideHover(true);
+        const wantRead = settings$1.bookshelfClickAction === "read" !== mods.flip;
+        const url = wantRead && continueReadingUrl(entry) || bookPageUrl(entry.item.book_id);
+        openUrl(url, mods.newTab);
       }
       function openGroup(group) {
         hideHover(true);
@@ -5819,7 +8656,7 @@ ${body}
         const targets = groups.value.filter((g2) => g2.name !== current).map((g2) => ({ key: `${MOVE_PREFIX}${g2.name}`, label: g2.name }));
         if (current) targets.push({ key: NO_GROUP_KEY, label: "无分组" });
         const items = [
-          { key: "open", label: "打开" },
+          { key: "read", label: "继续阅读" },
           { key: "detail", label: "查看详情" },
           {
             key: "move",
@@ -5851,24 +8688,24 @@ ${body}
         var _a;
         const entry = menuEntry.value;
         if (!entry) return;
-        const bookId = entry.item.book_id;
-        if (key === "open") {
-          openBook(entry);
+        const bookId2 = entry.item.book_id;
+        if (key === "read") {
+          openUrl(continueReadingUrl(entry) ?? bookPageUrl(bookId2));
           return;
         }
         if (key === "detail") {
-          unsafeWindow.location.href = `https://fanqienovel.com/page/${bookId}`;
+          openUrl(bookPageUrl(bookId2));
           return;
         }
         if (key.startsWith(DOWNLOAD_PREFIX$1)) {
           const format = key.slice(DOWNLOAD_PREFIX$1.length);
-          void startDownload(bookId, { format });
+          void startDownload(bookId2, { format });
           return;
         }
         if (key === "remove") {
-          if (!unsafeWindow.confirm(`确定要把《${((_a = entry.detail) == null ? void 0 : _a.title) ?? bookId}》从书架删除吗？`)) return;
+          if (!unsafeWindow.confirm(`确定要把《${((_a = entry.detail) == null ? void 0 : _a.title) ?? bookId2}》从书架删除吗？`)) return;
           try {
-            await removeFromBookshelf(bookId);
+            await removeFromBookshelf(bookId2);
             showToast("已从书架删除");
             await refresh();
           } catch (err) {
@@ -5880,7 +8717,7 @@ ${body}
         if (key.startsWith(MOVE_PREFIX)) {
           const groupName = key.slice(MOVE_PREFIX.length);
           try {
-            await moveToGroup(bookId, groupName);
+            await moveToGroup(bookId2, groupName);
             showToast(groupName ? `已移动到「${groupName}」` : "已移出分组");
             await refresh();
           } catch (err) {
@@ -6309,11 +9146,11 @@ ${body}
   }
   function normalizeBook(raw, cell) {
     var _a;
-    const bookId = String((raw == null ? void 0 : raw.book_id) ?? "");
-    if (!bookId || bookId === "0") return null;
+    const bookId2 = String((raw == null ? void 0 : raw.book_id) ?? "");
+    if (!bookId2 || bookId2 === "0") return null;
     const hl = cell == null ? void 0 : cell.search_high_light;
     return {
-      book_id: bookId,
+      book_id: bookId2,
       title: raw.book_name || raw.original_book_name || "",
       author: raw.author || "",
       cover_url: raw.thumb_url || raw.audio_thumb_url_hd || "",
@@ -6542,8 +9379,8 @@ ${body}
           loading.value = false;
         }
       }
-      function openBook(bookId) {
-        unsafeWindow.location.href = `https://fanqienovel.com/page/${bookId}`;
+      function openBook(bookId2) {
+        unsafeWindow.location.href = `https://fanqienovel.com/page/${bookId2}`;
       }
       vue.onMounted(load2);
       return (_ctx, _cache) => {
@@ -6707,14 +9544,14 @@ ${body}
       if (next !== BOOK_TAB_TYPE) selected.value = {};
       void run(true);
     }
-    function toggleFilter(rowName, itemId) {
+    function toggleFilter(rowName, itemId2) {
       const cur = selected.value[rowName];
-      if (cur === itemId) {
+      if (cur === itemId2) {
         const next = { ...selected.value };
         delete next[rowName];
         selected.value = next;
       } else {
-        selected.value = { ...selected.value, [rowName]: itemId };
+        selected.value = { ...selected.value, [rowName]: itemId2 };
       }
       void run(true);
     }
@@ -7271,7 +10108,7 @@ ${body}
   }
   const FUNCTIONAL_CLASSES = ["add-bookshelf-btn", "info-btn"];
   const BUTTON_GAP = 10;
-  function createButton(anchor, bookId) {
+  function createButton(anchor, bookId2) {
     const btn = document.createElement("button");
     btn.type = "button";
     const classes = Array.from(anchor.classList).filter((c) => !FUNCTIONAL_CLASSES.includes(c));
@@ -7282,7 +10119,7 @@ ${body}
     btn.addEventListener("click", (event) => {
       event.preventDefault();
       event.stopPropagation();
-      void startDownload(bookId, { format: settings$1.downloadFormat });
+      void startDownload(bookId2, { format: settings$1.downloadFormat });
     });
     return btn;
   }
@@ -7298,7 +10135,7 @@ ${body}
     btn.style.bottom = "0";
     btn.style.left = left;
   }
-  function inject(bookId) {
+  function inject(bookId2) {
     const anchors = Array.from(document.querySelectorAll(ANCHOR_SELECTOR));
     if (anchors.length === 0) return;
     const existing = document.querySelector(`.${ENTRY_CLASS}`);
@@ -7308,7 +10145,7 @@ ${body}
     }
     const anchor = anchors[anchors.length - 1];
     if (!anchor.parentElement) return;
-    const btn = createButton(anchor, bookId);
+    const btn = createButton(anchor, bookId2);
     anchor.insertAdjacentElement("afterend", btn);
     placeButton(btn, anchors);
   }
@@ -7323,16 +10160,16 @@ ${body}
       teardown();
       return;
     }
-    const bookId = parseBookId(path);
-    if (!bookId) return;
+    const bookId2 = parseBookId(path);
+    if (!bookId2) return;
     injectStyle$1();
     teardown();
     await waitForElement(ANCHOR_SELECTOR, 8e3);
     if (window.location.pathname !== path) return;
-    inject(bookId);
+    inject(bookId2);
     observer = new MutationObserver(() => {
       if (window.location.pathname !== path) return;
-      inject(bookId);
+      inject(bookId2);
     });
     observer.observe(document.body, { childList: true, subtree: true });
   }

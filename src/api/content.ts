@@ -80,6 +80,8 @@ export async function getChapter(itemId: string, _retry?: number): Promise<any> 
         await ensureKeyinfo()
     }
     const res = await appGet('/reader/full/v', { item_id: itemId, req_type: '1' })
+    // appGet 已经处理过「设备被作废」（空响应体会自动换设备重试）。
+    // 走到这里还是空的，说明连换设备都没救回来，如实抛错而不是继续重试
     const j = res.json()?.data
     if (!j) {
         console.warn('Failed to get chapter: ', itemId, ', response: ', res.responseText)
@@ -129,6 +131,8 @@ export async function getChapters(
         req_type: '1',
     })
 
+    // appGet 已处理过「设备被作废」（空响应体会自动换设备重试）；
+    // 这里还解析失败就是真的坏响应，直接抛给调用方，别退化成「章节全部失败」
     const raw = res.json()?.data
     const entries: Array<[string, any]> = raw && typeof raw === 'object'
         ? (Array.isArray(raw)

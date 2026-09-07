@@ -9,6 +9,14 @@ import { cloneElement } from '../utils';
 import { fetchArrayBuffer } from '../utils/request';
 import { type Book } from '../types'
 import { decryptComicImage } from '../crypto/content';
+import { initAudioPanel } from '../audioPanel'
+import {
+    closeAudiobook,
+    openAudiobook,
+    refreshParagraphs,
+    state as audioState,
+    switchChapter,
+} from '../audiobook/controller'
 // import moment from 'moment'
 
 let currentBook: Book | null = null
@@ -303,6 +311,36 @@ async function insertContent() {
             }
         }
     }
+
+    // 正文换了：段落节点全是新的，正在听书就把音频也切到这一章
+    if (audioState.open) {
+        await switchChapter(itemId, {
+            cover: currentBook?.cover_url ?? '',
+            title: currentBook?.title ?? document.title,
+        })
+    } else {
+        refreshParagraphs()
+    }
+}
+
+/**
+ * 工具栏「听书」按钮：停止 / 开始听书。
+ *
+ * 已经在听的时候再点就是停止。切音色走左下角悬浮栏，不从这里进。
+ */
+async function startAudioPlay(): Promise<void> {
+    if (audioState.open) {
+        closeAudiobook()
+        return
+    }
+    const itemId = window.location.pathname.split('/').pop()?.substring(0, 19) || ''
+    if (!itemId) return
+    initAudioPanel()
+    // 封面和书名从已取到的书籍信息来；正文还没加载完时退化成空封面
+    await openAudiobook(itemId, currentBook?.book_id ?? '', {
+        cover: currentBook?.cover_url ?? '',
+        title: currentBook?.title ?? document.title,
+    })
 }
 
 // let currentBook: Book | null = null
@@ -322,6 +360,28 @@ async function onLoad(): Promise<void> {
         document.head.appendChild(style)
     }
         */
+    // 切换日夜间的按钮，不管怎么样它的状态都是完全一样的。适合作为模板。
+    const toolbar = document.querySelector("div.reader-toolbar > div")
+    const toolbarButton = document.querySelector("div.reader-toolbar > div > div:nth-child(3)")
+    if (toolbarButton && toolbar) {
+        const c = cloneElement(toolbarButton)
+        c.id = 'fqa-toggle-audiobook'
+        const listenIcon = document.createElement('span')
+        listenIcon.textContent = '听'
+        listenIcon.style.width = '24px'
+        listenIcon.style.height = '24px'
+        listenIcon.style.fontSize = '24px'
+        listenIcon.style.lineHeight = '24px'
+        listenIcon.classList.add('muyeicon-icon')
+        listenIcon.classList.add('reader-toolbar-item-icon')
+        c.firstChild?.replaceWith(listenIcon)
+        const l = c.lastChild as HTMLDivElement
+        if (l) {
+            l.textContent = '听书'
+        }
+        c.addEventListener('click', () => void startAudioPlay())
+        toolbar.appendChild(c)
+    }
     const btns = document.querySelector("div.muye-reader-btns") // single div
     if (btns) {
         // TODO: 直接覆写按钮行为，切章节由脚本完成

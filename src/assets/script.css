@@ -234,3 +234,7 @@
 .info {
 	width: 100%!important;
 }
+
+.reader-toolbar {
+	user-select: none;
+}

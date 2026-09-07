@@ -1,0 +1,360 @@
+/* 听书悬浮栏与音色弹窗。
+ * 暗色跟随页面的 div.muye-reader-dark（与 userHook 的判定一致）。 */
+
+.fqa-audio-root {
+	--fqa-audio-bg: #fff;
+	--fqa-audio-text: #1f2329;
+	--fqa-audio-sub: #8f959e;
+	--fqa-audio-hover: rgba(31, 35, 41, 0.06);
+	--fqa-audio-border: rgba(31, 35, 41, 0.1);
+	--fqa-audio-shadow: 0 6px 24px rgba(0, 0, 0, 0.16);
+
+	position: fixed;
+	left: 20px;
+	bottom: 20px;
+	z-index: 2147483000;
+	font-size: 14px;
+	color: var(--fqa-audio-text);
+}
+
+/* 页面切到夜间模式时整体反色 */
+.muye-reader-dark .fqa-audio-root,
+.fqa-audio-root.fqa-audio-dark {
+	--fqa-audio-bg: #2b2b2b;
+	--fqa-audio-text: #b3b3b3;
+	--fqa-audio-sub: #7a7a7a;
+	--fqa-audio-hover: rgba(255, 255, 255, 0.08);
+	--fqa-audio-border: rgba(255, 255, 255, 0.12);
+	--fqa-audio-shadow: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
+
+.fqa-audio-bar {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px 8px 8px;
+	border-radius: 999px;
+	background: var(--fqa-audio-bg);
+	box-shadow: var(--fqa-audio-shadow);
+}
+
+/* ------------------------------- 旋转封面 ------------------------------- */
+
+.fqa-audio-cover {
+	position: relative;
+	flex: 0 0 auto;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: var(--fqa-audio-hover);
+	cursor: pointer;
+}
+
+/*
+ * 只有这一层转。状态图标是 .fqa-audio-state，放在旋转层外面，
+ * 否则会跟着封面一起转，反而更看不清。
+ * 播放/缓冲时转，暂停时停在当前角度（animation-play-state 比移除动画更平滑）
+ */
+.fqa-audio-disc {
+	position: absolute;
+	inset: 0;
+	border-radius: 50%;
+	overflow: hidden;
+	animation: fqa-audio-rotate 8s linear infinite;
+	animation-play-state: paused;
+}
+
+.fqa-audio-disc.fqa-audio-spin {
+	animation-play-state: running;
+}
+
+.fqa-audio-disc img {
+	display: block;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+.fqa-audio-cover-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 100%;
+	color: var(--fqa-audio-sub);
+	font-size: 18px;
+}
+
+/* 播放/暂停状态。压一层遮罩，浅色封面上也看得清 */
+.fqa-audio-state {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 50%;
+	background: rgba(0, 0, 0, 0.38);
+	color: #fff;
+	transition: background 0.2s ease;
+}
+
+.fqa-audio-cover:hover .fqa-audio-state {
+	background: rgba(0, 0, 0, 0.55);
+}
+
+/*
+ * 只给尺寸，不写 fill：paused.svg 里那块透明点击区是 fill="none"，
+ * CSS 的 fill 优先级高于表现属性，会把它填成一个白方块盖住图标。
+ * 两个 svg 自身已经用 currentColor，跟着上面的 color 走。
+ */
+.fqa-audio-state svg {
+	width: 18px;
+	height: 18px;
+}
+
+@keyframes fqa-audio-rotate {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fqa-audio-disc { animation: none; }
+}
+
+/* -------------------------------- 文字区 -------------------------------- */
+
+.fqa-audio-meta {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	min-width: 0;
+	max-width: 180px;
+	line-height: 1.35;
+}
+
+.fqa-audio-title,
+.fqa-audio-sub {
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.fqa-audio-sub {
+	color: var(--fqa-audio-sub);
+	font-size: 12px;
+}
+
+/* -------------------------------- 按钮 -------------------------------- */
+
+.fqa-audio-btn,
+.fqa-audio-expand {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	width: 32px;
+	height: 32px;
+	padding: 0;
+	border: none;
+	border-radius: 50%;
+	background: transparent;
+	color: var(--fqa-audio-text);
+	cursor: pointer;
+}
+
+.fqa-audio-btn:hover,
+.fqa-audio-expand:hover {
+	background: var(--fqa-audio-hover);
+}
+
+.fqa-audio-close {
+	font-size: 20px;
+	line-height: 1;
+}
+
+/* svg 用 currentColor，跟着按钮的 color 走 */
+.fqa-audio-icon {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 16px;
+	height: 16px;
+}
+
+.fqa-audio-icon svg {
+	width: 100%;
+	height: 100%;
+	fill: currentColor;
+}
+
+/* 收起后箭头水平翻转朝右 */
+.fqa-audio-icon-flip {
+	transform: scaleX(-1);
+}
+
+.fqa-audio-expand {
+	background: var(--fqa-audio-bg);
+	box-shadow: var(--fqa-audio-shadow);
+	width: 36px;
+	height: 36px;
+}
+
+/* 三个点 */
+.fqa-audio-dots,
+.fqa-audio-dots::before,
+.fqa-audio-dots::after {
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: currentColor;
+}
+
+.fqa-audio-dots {
+	position: relative;
+}
+
+.fqa-audio-dots::before,
+.fqa-audio-dots::after {
+	content: '';
+	position: absolute;
+	top: 0;
+}
+
+.fqa-audio-dots::before { left: -7px; }
+.fqa-audio-dots::after { left: 7px; }
+
+/* ----------------------------- 段落高亮 ----------------------------- */
+
+.fqa-audio-active {
+	background: var(--web-brand_light, rgba(241, 70, 70, 0.12));
+	border-radius: 4px;
+	transition: background 0.2s ease;
+}
+
+/* ----------------------------- 音色弹窗 ----------------------------- */
+
+.fqa-tone-mask {
+	position: fixed;
+	inset: 0;
+	z-index: 2147483002;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.45);
+}
+
+.fqa-tone-box {
+	width: min(420px, calc(100vw - 32px));
+	max-height: min(560px, calc(100vh - 64px));
+	display: flex;
+	flex-direction: column;
+	padding: 20px;
+	border-radius: 12px;
+	background: var(--fqa-audio-bg, #fff);
+	color: var(--fqa-audio-text, #1f2329);
+	box-shadow: 0 12px 40px rgba(0, 0, 0, 0.24);
+}
+
+.fqa-tone-title {
+	margin: 0 0 4px;
+	font-size: 17px;
+	font-weight: 600;
+}
+
+.fqa-tone-sub {
+	margin: 0 0 14px;
+	color: var(--fqa-audio-sub, #8f959e);
+	font-size: 12px;
+}
+
+.fqa-tone-list {
+	flex: 1 1 auto;
+	overflow-y: auto;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+}
+
+.fqa-tone-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 8px 10px;
+	border: 1px solid transparent;
+	border-radius: 8px;
+	background: transparent;
+	color: inherit;
+	text-align: left;
+	cursor: pointer;
+}
+
+.fqa-tone-item:hover {
+	background: var(--fqa-audio-hover, rgba(31, 35, 41, 0.06));
+}
+
+.fqa-tone-item-active {
+	border-color: var(--web-brand, #f14646);
+}
+
+.fqa-tone-icon {
+	flex: 0 0 auto;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.fqa-tone-icon-empty {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--fqa-audio-hover, rgba(31, 35, 41, 0.06));
+	color: var(--fqa-audio-sub, #8f959e);
+}
+
+.fqa-tone-text {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.fqa-tone-name {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	font-size: 14px;
+}
+
+.fqa-tone-gender {
+	color: var(--fqa-audio-sub, #8f959e);
+	font-size: 11px;
+}
+
+.fqa-tone-desc {
+	overflow: hidden;
+	color: var(--fqa-audio-sub, #8f959e);
+	font-size: 12px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+
+.fqa-tone-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 14px;
+}
+
+.fqa-tone-btn {
+	padding: 6px 16px;
+	border: 1px solid var(--fqa-audio-border, rgba(31, 35, 41, 0.1));
+	border-radius: 6px;
+	background: transparent;
+	color: inherit;
+	cursor: pointer;
+}
+
+.fqa-tone-btn:hover {
+	background: var(--fqa-audio-hover, rgba(31, 35, 41, 0.06));
+}

@@ -30,7 +30,10 @@ export default defineConfig({
         author: 'naiyQAQ',
         'run-at': 'document-start',
         match: ['*://*.fanqienovel.com/*'],
-        grant: ['GM_addStyle', 'GM_getValue', 'GM_setValue', 'GM_deleteValue', 'GM_xmlhttpRequest', 'unsafeWindow'],
+        // GM_cookie 用于读 HttpOnly 的 sessionid（书评点赞需要登录态）。
+        // 注意：Tampermonkey 稳定版默认只返回非 HttpOnly 的 Cookie，
+        // 用户需在 设置→通用→配置模式→高级，再 设置→高级→安全→允许脚本访问 Cookie→All
+        grant: ['GM_addStyle', 'GM_getValue', 'GM_setValue', 'GM_deleteValue', 'GM_xmlhttpRequest', 'GM_cookie', 'unsafeWindow'],
         connect: [
             'fanqienovel.com', // 主站
             'jxbhmy.com', // 红烛小说 API
@@ -38,6 +41,11 @@ export default defineConfig({
             'byteimg.com', // 图床
             'fqnovelpic.com', // 图床
             'bytecdn.cn', // 图床
+            // 听书音频 CDN。页面 CSP 的 connect-src 不含这些域名，
+            // 走页面 fetch 会被 report-only 策略上报，所以改用 GM_xmlhttpRequest
+            'fqnovelvod.com', // 番茄小说 TTS
+            'novelfmvod.com', // 番茄畅听
+            'volcautovod.com', // 火山引擎回源
         ],
       },
       build: {

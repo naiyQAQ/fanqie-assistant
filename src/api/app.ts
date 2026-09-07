@@ -1,10 +1,16 @@
-import apiFetch from '../utils/request'
+import apiFetch, { isEmptyResponse } from '../utils/request'
 import { signRequest } from '../crypto/sign'
 import config, { fetch as pageFetch } from '../config'
 import { settings } from '../settings'
+import { replaceDevice, markDeviceHealthy } from './provision'
 
 
 export const appBaseUrl = 'https://reading.snssdk.com/reading'
+/**
+ * APP 网关的根地址。绝大多数接口挂在 /reading 下（见 appBaseUrl），
+ * 但书评那套在根路径 /novel/commentapi/*，套上 /reading 会 404。
+ */
+export const appRootUrl = 'https://reading.snssdk.com'
 export const redcandleBaseUrl = 'https://api5-sinfonlinec.jxbhmy.com/reading'
 /**
  * 番茄网页站同源挂载的 APP 接口。走页面 fetch 时浏览器会自动带上 Cookie，
@@ -33,6 +39,7 @@ export function buildAppQuery(extra?: Record<string, string>): URLSearchParams {
         device_brand: c.device_brand || 'realme',
         update_version_code: '70132',
         manifest_version_code: '70132',
+        pv_player: '70132',
         ...extra,
     })
 }
@@ -66,6 +73,7 @@ function isUsable(res: any): boolean {
         const j = res.json()
         return !j || j.code === undefined || j.code === 0
     } catch {
+        // 包括空响应体（设备被作废），一律当作不可用，交给下一个通道
         return false
     }
 }
@@ -90,6 +98,35 @@ async function requestRedcandle(path: string, query?: Record<string, string>, he
 }
 
 
+/**
+ * 打番茄接口，遇到「设备被作废」自动换设备重试一次。
+ *
+ * 服务端作废设备的表现是 HTTP 200 + 完全空的响应体，没有错误码可判断
+ * （详见 provision.replaceDevice）。这里是所有 /reading/* GET 的唯一出口，
+ * 集中处理比每个调用点各写一遍可靠。
+ */
+async function requestAppWithRecovery(
+    path: string,
+    query?: Record<string, string>,
+    headers?: Record<string, string>,
+) {
+    const res = await requestApp(path, query, headers)
+    if (!isEmptyResponse(res)) {
+        // 有响应就说明网关认这台设备，解除替换锁
+        markDeviceHealthy()
+        return res
+    }
+
+    console.warn(`[fqa:api] ${path} 返回空响应体，判定当前设备已失效`)
+    // 换设备失败就把空响应交回去，让调用方按原有逻辑报错
+    if (!(await replaceDevice())) return res
+
+    const retry = await requestApp(path, query, headers)
+    if (!isEmptyResponse(retry)) markDeviceHealthy()
+    return retry
+}
+
+
 export async function appGet(
     path: string,
     query?: Record<string, string>,
@@ -104,7 +141,7 @@ export async function appGet(
             console.warn(`[fqa:api] 红烛接口请求失败，回落到番茄 APP: ${path}`, e)
         }
     }
-    return requestApp(path, query, headers)
+    return requestAppWithRecovery(path, query, headers)
 }
 
 
@@ -114,7 +151,30 @@ export async function appPost(
     query?: Record<string, string>,
     headers?: Record<string, string>,
 ): Promise<any> {
-    const url = `${appBaseUrl}${path}?${buildAppQuery(query).toString()}`
+    return postSigned(appBaseUrl + path, body, query, headers)
+}
+
+
+/**
+ * 打 APP 网关根路径（不带 /reading 前缀）的 POST 接口，目前只有书评在用。
+ */
+export async function appRootPost(
+    path: string,
+    body: string,
+    query?: Record<string, string>,
+    headers?: Record<string, string>,
+): Promise<any> {
+    return postSigned(appRootUrl + path, body, query, headers)
+}
+
+
+async function postSigned(
+    base: string,
+    body: string,
+    query?: Record<string, string>,
+    headers?: Record<string, string>,
+): Promise<any> {
+    const url = `${base}?${buildAppQuery(query).toString()}`
     const signed = await signRequest(url, body)
     console.log('---start--- APP POST ', url)
     const res = await apiFetch(url, {

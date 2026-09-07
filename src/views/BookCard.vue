@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import type { BookShelfEntry } from '../types'
+import { isMiddleButton, modifiersOf, type OpenModifiers } from '../utils/navigate'
 
 const props = defineProps<{ entry: BookShelfEntry }>()
 
 const emit = defineEmits<{
     (e: 'hover', payload: { entry: BookShelfEntry; el: HTMLElement }): void
     (e: 'leave'): void
-    (e: 'open', entry: BookShelfEntry): void
+    (e: 'open', payload: { entry: BookShelfEntry; mods: OpenModifiers }): void
     (e: 'visible', entry: BookShelfEntry): void
     (e: 'contextmenu', payload: { entry: BookShelfEntry; x: number; y: number }): void
 }>()
@@ -56,6 +57,24 @@ function onContextMenu(event: MouseEvent) {
     emit('contextmenu', { entry: props.entry, x: event.clientX, y: event.clientY })
 }
 
+function open(event: MouseEvent | KeyboardEvent) {
+    emit('open', { entry: props.entry, mods: modifiersOf(event) })
+}
+
+/**
+ * 中键在 click 事件里拿不到（浏览器只对左键派发 click），走 auxclick。
+ * mousedown 上还要 preventDefault，否则中键会启动自动滚动。
+ */
+function onAuxClick(event: MouseEvent) {
+    if (!isMiddleButton(event)) return
+    event.preventDefault()
+    open(event)
+}
+
+function onMouseDown(event: MouseEvent) {
+    if (isMiddleButton(event)) event.preventDefault()
+}
+
 /** 封面淡入。用状态而非直接改 class，避免重渲染后卡在透明态 */
 const imgLoaded = ref(false)
 watch(
@@ -101,9 +120,11 @@ onBeforeUnmount(() => {
         @mouseenter="onEnter"
         @mouseleave="emit('leave')"
         @contextmenu="onContextMenu"
-        @click="emit('open', entry)"
-        @keydown.enter.prevent="emit('open', entry)"
-        @keydown.space.prevent="emit('open', entry)"
+        @click="open"
+        @auxclick="onAuxClick"
+        @mousedown="onMouseDown"
+        @keydown.enter.prevent="open"
+        @keydown.space.prevent="open"
     >
         <!-- 详情未到达前先占位，避免高度跳动 -->
         <template v-if="!detail">

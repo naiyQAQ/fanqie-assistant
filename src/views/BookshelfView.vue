@@ -8,6 +8,7 @@ import { TABS, useBookshelf } from './useBookshelf'
 import { moveToGroup, removeFromBookshelf } from '../api/bookshelf'
 import { startDownload } from '../download'
 import { settings } from '../settings'
+import { bookPageUrl, openUrl, readerUrl, type OpenModifiers } from '../utils/navigate'
 import type { BookShelfEntry, BookShelfGroup, BookShelfTabKey, MenuItem } from '../types'
 
 /** 持续悬停多久后展示详情 */
@@ -232,15 +233,21 @@ function onGroupVisible(entries: BookShelfEntry[]) {
 
 /* -------------------------------- 交互 -------------------------------- */
 
-function openBook(entry: BookShelfEntry) {
-    hideHover(true)
+/** 继续阅读的地址；没有阅读记录时返回 null，调用方退回详情页 */
+function continueReadingUrl(entry: BookShelfEntry): string | null {
     const chapterId = entry.detail?.current_chapter_id || entry.item.last_read_chapter_id
-    // 没有阅读记录时退回书籍详情页
-    const url =
-        chapterId && chapterId !== '0'
-            ? `https://fanqienovel.com/reader/${chapterId}`
-            : `https://fanqienovel.com/page/${entry.item.book_id}`
-    unsafeWindow.location.href = url
+    return chapterId && chapterId !== '0' ? readerUrl(chapterId) : null
+}
+
+/**
+ * 单击书本。去向由设置决定，Ctrl（Mac 上还有 Cmd）取反，中键开新标签页。
+ * 选了「继续阅读」但这本书还没读过时，退回详情页。
+ */
+function openBook({ entry, mods }: { entry: BookShelfEntry; mods: OpenModifiers }) {
+    hideHover(true)
+    const wantRead = (settings.bookshelfClickAction === 'read') !== mods.flip
+    const url = (wantRead && continueReadingUrl(entry)) || bookPageUrl(entry.item.book_id)
+    openUrl(url, mods.newTab)
 }
 
 function openGroup(group: BookShelfGroup) {
@@ -283,7 +290,7 @@ const menuItems = computed<MenuItem[]>(() => {
     if (current) targets.push({ key: NO_GROUP_KEY, label: '无分组' })
 
     const items: MenuItem[] = [
-        { key: 'open', label: '打开' },
+        { key: 'read', label: '继续阅读' },
         { key: 'detail', label: '查看详情' },
         {
             key: 'move',
@@ -318,12 +325,13 @@ async function onMenuSelect(key: string) {
     if (!entry) return
     const bookId = entry.item.book_id
 
-    if (key === 'open') {
-        openBook(entry)
+    if (key === 'read') {
+        // 没读过就退回详情，和单击的行为一致
+        openUrl(continueReadingUrl(entry) ?? bookPageUrl(bookId))
         return
     }
     if (key === 'detail') {
-        unsafeWindow.location.href = `https://fanqienovel.com/page/${bookId}`
+        openUrl(bookPageUrl(bookId))
         return
     }
     if (key.startsWith(DOWNLOAD_PREFIX)) {

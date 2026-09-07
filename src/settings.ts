@@ -9,8 +9,14 @@ export type ApiPreference = 'app' | 'redcandle'
 /** 下载格式 */
 export type DownloadFormat = 'epub' | 'txt'
 
+/** 书架里单击书本的去向 */
+export type BookshelfClickAction = 'read' | 'detail'
+
 /** TXT 编码 */
 export type DownloadCharset = 'utf-8' | 'gbk'
+
+/** 听书读完一章之后做什么 */
+export type AudiobookChapterEnd = 'next' | 'stop'
 
 export interface Settings {
     /* --- 常规 --- */
@@ -28,6 +34,11 @@ export interface Settings {
     customCssEnabled: boolean
     /** 自定义 CSS 内容。关闭开关时仍然保留，只是不应用 */
     customCss: string
+    /**
+     * 书架里单击书本的默认去向。
+     * 按住 Ctrl 单击取相反项；中键（或 Ctrl+中键）在新标签页打开对应目标。
+     */
+    bookshelfClickAction: BookshelfClickAction
 
     /* --- 搜索 --- */
     /** 接管网页搜索界面 */
@@ -55,6 +66,12 @@ export interface Settings {
     /** EPUB：保留书籍自带的排版样式（css_map） */
     downloadBookCss: boolean
 
+    /* --- 听书 --- */
+    /** 读完一章之后：next=自动下一章，stop=停下 */
+    audiobookChapterEnd: AudiobookChapterEnd
+    /** 高亮朗读中的段落，并跟随滚动 */
+    audiobookFollow: boolean
+
     /* --- 协议 --- */
     apiPreference: ApiPreference
     /** 用户手动指定的设备信息，留空表示用脚本自动注册的设备 */
@@ -71,6 +88,8 @@ export const DEFAULT_SETTINGS: Settings = {
     readerFont: '',
     customCssEnabled: false,
     customCss: '',
+    // 原站书架点封面是继续阅读，保持一致
+    bookshelfClickAction: 'read',
 
     enhanceSearch: true,
     // 默认关：携带登录态属于额外的隐私暴露，交给用户显式开启
@@ -87,6 +106,9 @@ export const DEFAULT_SETTINGS: Settings = {
     downloadVolumePage: false,
     downloadImages: true,
     downloadBookCss: true,
+
+    audiobookChapterEnd: 'next',
+    audiobookFollow: true,
 
     apiPreference: 'app',
     deviceId: '',
@@ -115,6 +137,12 @@ function normalize(raw: unknown): Settings {
     }
     if (s.downloadCharset !== 'utf-8' && s.downloadCharset !== 'gbk') {
         s.downloadCharset = DEFAULT_SETTINGS.downloadCharset
+    }
+    if (s.bookshelfClickAction !== 'read' && s.bookshelfClickAction !== 'detail') {
+        s.bookshelfClickAction = DEFAULT_SETTINGS.bookshelfClickAction
+    }
+    if (s.audiobookChapterEnd !== 'next' && s.audiobookChapterEnd !== 'stop') {
+        s.audiobookChapterEnd = DEFAULT_SETTINGS.audiobookChapterEnd
     }
     // 数字项来自输入框，可能是 NaN 或越界值
     s.downloadBatchSize = clampInt(s.downloadBatchSize, 1, 30, DEFAULT_SETTINGS.downloadBatchSize)
