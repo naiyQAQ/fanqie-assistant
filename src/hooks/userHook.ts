@@ -4,6 +4,7 @@ import bookshelf from '../assets/bookshelf.svg?raw'
 import settings from '../assets/settings.svg?raw'
 import { openSettings } from '../settingsPanel'
 import { cloneElement } from '../utils'
+import { settings as userSettings } from '../settings'
 
 function formatReadingTime(readBookTime: bigint): string {
     let minutes = readBookTime / 60_000n
@@ -77,6 +78,19 @@ async function mainHook(_previous?: string): Promise<void> {
         secondDiv.insertAdjacentElement('afterend', thirdDiv)
         // 助手设置固定放在菜单最后
         menuInner.appendChild(createMenuItem('助手设置', settings, openSettings))
+        menuInner.childNodes.forEach((node) => {
+            if (node.lastChild?.textContent?.trim() === '退出登录') {
+                const original = node as HTMLElement
+                const replaced = cloneElement(node as Element)
+                original.classList.add('fqa-hide')
+                original.insertAdjacentElement('afterend', replaced)
+                replaced.addEventListener('click', (_) => {
+                    if (!userSettings.logoutConfirm || unsafeWindow.confirm('确认退出登录吗?')) {
+                        original.click()
+                    }
+                })
+            }
+        })
     }
 
     const scan = (root: HTMLElement) => {

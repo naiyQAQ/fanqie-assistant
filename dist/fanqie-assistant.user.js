@@ -133,6 +133,8 @@
     decryptFont: true,
     blockReport: true,
     allowCopy: true,
+    shelfRemoveConfirm: true,
+    logoutConfirm: true,
     readerFont: "",
     customCssEnabled: false,
     customCss: "",
@@ -1379,6 +1381,7 @@
   const REGISTER_URL = "https://i.snssdk.com/service/2/device_register/?tt_data=a";
   const READING_BASE = "https://reading.snssdk.com";
   const USER_AGENT = "com.dragon.read";
+  const APP_REQUEST = { credentials: "omit" };
   function buildQuery(device, versionCode, extra) {
     return new URLSearchParams({
       device_id: device.device_id,
@@ -1399,6 +1402,7 @@
       new TextEncoder().encode(JSON.stringify(body)).buffer
     );
     const res = await apiFetch(REGISTER_URL, {
+      ...APP_REQUEST,
       method: "POST",
       headers: {
         "User-Agent": "okhttp/4.10.0",
@@ -1431,6 +1435,7 @@
     try {
       const headers = await signRequest(url, body);
       const res = await apiFetch(url, {
+        ...APP_REQUEST,
         method: "POST",
         headers: {
           ...headers,
@@ -1475,6 +1480,7 @@
     const gzipped = await gzip(plainBody);
     const headers = await signRequest(url, gzipped);
     const res = await apiFetch(url, {
+      ...APP_REQUEST,
       method: "POST",
       headers: {
         ...headers,
@@ -1973,7 +1979,7 @@
     const j = response.json();
     const items = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.item_data_list;
     if ((j == null ? void 0 : j.code) !== 0 || !Array.isArray(items) || items.length === 0) {
-      throw new Error("Empty catalog");
+      return [null, null];
     }
     return [items, items.map((it) => String(it.item_id))];
   }
@@ -1983,24 +1989,26 @@
     const rj = response.json();
     const d = rj.data;
     const allItems = d.allItemIds;
-    const volmap = {};
+    const cs = [];
     const vname = d.volumeNameList;
     for (let i2 = 0; i2 < vname.length; i2++) {
       const volumeName = vname[i2];
       if (volumeName !== void 0) {
-        volmap[volumeName] = d.chapterListWithVolume[i2];
+        cs.push(...d.chapterListWithVolume[i2]);
       }
     }
-    return [volmap, allItems];
+    return [cs, allItems];
   }
   async function getCatalog(bookId2) {
     const r = await getCatalogRaw(bookId2);
     let catalogRaw = r[0];
     let allItemIds = r[1];
+    console.log("catalogRaw", catalogRaw, "allItemIds", allItemIds);
     if (!catalogRaw || !allItemIds) {
       const rw = await webCatalog(bookId2);
       catalogRaw = rw[0];
       allItemIds = rw[1];
+      console.log("webCatalog", catalogRaw, "allItemIds", allItemIds);
     }
     const vmap = {};
     const chapters = [];
@@ -4557,9 +4565,12 @@
 	color: var(--fqa-audio-text);
 }
 
-/* 页面切到夜间模式时整体反色 */
-.muye-reader-dark .fqa-audio-root,
-.fqa-audio-root.fqa-audio-dark {
+/*
+ * 暗色反色。悬浮栏挂在 body 下，够不到 .muye-reader-dark 的后代选择器，
+ * 所以 audioPanel 在 #fqa-audio-root 容器上打 .fqa-audio-dark 类；
+ * 真正的 .fqa-audio-root（Vue 根）是容器的子节点，用后代选择器作用到它。
+ */
+.fqa-audio-dark .fqa-audio-root {
 	--fqa-audio-bg: #2b2b2b;
 	--fqa-audio-text: #b3b3b3;
 	--fqa-audio-sub: #7a7a7a;
@@ -4939,10 +4950,547 @@
     };
     app$4.mount(container$4);
   }
+  const SHELF_BASE = "https://fanqienovel.com/reading/bookapi/bookshelf";
+  async function getBookshelf() {
+    const responses = await Promise.all([
+      fetch$1(SHELF_BASE + "/info/v:version/?aid=1967&iid=0&version_code=57700&update_version_code=57700"),
+      fetch$1("https://fanqienovel.com/api/reader/book/progress")
+    ]);
+    const response = responses[0];
+    const response2 = responses[1];
+    const data = await response.json();
+    const info = data.data.book_shelf_info;
+    const data_ = await response2.json();
+    const data2 = data_.data;
+    const all_items = info.map((item) => item.book_id);
+    const response3 = await fetch$1("https://fanqienovel.com/api/book/simple/info", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        book_ids: all_items
+      })
+    });
+    const data__ = await response3.json();
+    const data3 = data__.data.bookList;
+    const results = [];
+    for (let i2 of data.data.book_shelf_info) {
+      const progress = data2.find((it) => it.book_id === i2.book_id);
+      const simple = data3.find((it) => it.book_id === i2.book_id);
+      const item = {
+        book_id: i2.book_id,
+        last_operate_time: progress ? progress.read_timestamp : i2.last_operate_time,
+        add_shelf_time: i2.add_shelf_time,
+        group_name: i2.group_name,
+        last_read_timestamp: progress ? progress.read_timestamp : 0,
+        last_read_chapter_id: progress ? progress.item_id : "0",
+        is_publish: (simple == null ? void 0 : simple.genre) === "6"
+      };
+      results.push(item);
+    }
+    return results;
+  }
+  async function multidetail(books) {
+    const response = await fetch$1("https://fanqienovel.com/api/bookshelf/multidetail", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        books: books.map((book) => {
+          return {
+            book_id: book.book_id,
+            item_id: book.last_read_chapter_id
+          };
+        })
+      })
+    });
+    const data = await response.json();
+    const list = data.data.detail_list;
+    const results = [];
+    for (let i2 of list) {
+      const item = {
+        book_id: i2.book_id,
+        summary: i2.abstract,
+        title: i2.book_name,
+        author: i2.author_name,
+        cover_url: i2.thumb_url,
+        current_chapter_title: i2.item_show_title,
+        current_chapter_id: i2.item_id,
+        current_chapter_order: i2.real_chapter_order,
+        total_chapter_count: i2.serial_count,
+        last_chapter_update_time: i2.last_chapter_update_time * 1e3,
+        last_chapter_id: i2.last_chapter_item_id,
+        current_chapter_summary: i2.item_abstract,
+        // last_chapter_title: i.last_chapter_show_title,
+        status: i2.update_stop === "1" ? 4 : i2.creation_status,
+        update_status: i2.update_status
+      };
+      results.push(item);
+    }
+    return results;
+  }
+  function identify(bookId2, modifyTime = 0) {
+    return {
+      asterisked: false,
+      book_id: bookId2,
+      book_type: 0,
+      modify_time: modifyTime
+    };
+  }
+  async function shelfPost(path, body) {
+    const res = await fetch$1(`${SHELF_BASE}${path}/v?aid=1967`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify(body)
+    });
+    const json = await res.json().catch(() => null);
+    if (!res.ok || json && json.code !== 0 && json.code !== void 0) {
+      throw new Error(`书架操作失败(${path}): ${(json == null ? void 0 : json.message) ?? res.status}`);
+    }
+    return json;
+  }
+  async function addToBookshelf(bookId2) {
+    await shelfPost("/add", {
+      add_book_source: 0,
+      identify_data: [identify(bookId2)]
+    });
+  }
+  async function removeFromBookshelf(bookId2) {
+    await shelfPost("/delete", {
+      identify_data: [identify(bookId2, Date.now())]
+    });
+  }
+  async function moveToGroup(bookId2, groupName) {
+    await shelfPost("/update", {
+      book_data: [
+        {
+          asterisked: false,
+          book_id: bookId2,
+          book_type: 0,
+          group_name: groupName,
+          has_shown: false,
+          is_pin: false,
+          modify_time: Date.now()
+        }
+      ]
+    });
+  }
+  async function isInBookshelf(book_id) {
+    const response = await fetch$1(`https://fanqienovel.com/reading/bookapi/bookshelf/check/v:version/?aid=1967&iid=0&version_code=57700&update_version_code=57700&book_id=${book_id}`);
+    const data = await response.json();
+    return Boolean(data.data);
+  }
+  function addResponseModifier(modifier) {
+    modifiers.push(modifier);
+    return () => {
+      const i2 = modifiers.indexOf(modifier);
+      if (i2 >= 0) modifiers.splice(i2, 1);
+    };
+  }
+  const modifiers = [];
+  const blackList = [
+    "mcs.zijieapi.com",
+    "vcs.zijieapi.com/vc/setting",
+    "mon.zijieapi.com",
+    "mssdk.bytedance.com/web/common",
+    "hm.baidu.com"
+  ];
+  const BLOCKED_BODY = JSON.stringify({
+    e: 0,
+    sc: 10,
+    tc: 10
+  });
+  function checkBlack(url) {
+    if (!settings$1.blockReport) return false;
+    return blackList.some((black) => url.includes(black));
+  }
+  function toLocalArrayBuffer(buf) {
+    const bytes = buf instanceof ArrayBuffer ? new Uint8Array(buf) : new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+    const out = new ArrayBuffer(bytes.byteLength);
+    new Uint8Array(out).set(bytes);
+    return out;
+  }
+  function textToBody(text) {
+    return toLocalArrayBuffer(new TextEncoder().encode(text));
+  }
+  function bodyToText(body) {
+    if (typeof body === "string") return body;
+    return new TextDecoder().decode(body);
+  }
+  function bodyToBuffer(body) {
+    if (typeof body === "string") return textToBody(body);
+    return body;
+  }
+  function resolveSimple(simple) {
+    return { ...simple, responseBody: bodyToBuffer(simple.responseBody) };
+  }
+  function matchingModifiers(url) {
+    return modifiers.filter((m) => m.matcher(url));
+  }
+  function applyModifiers(url, matched, simple) {
+    let current = simple;
+    for (const m of matched) {
+      if (m.modify_response) current = m.modify_response(url, current);
+    }
+    return current;
+  }
+  function responseAllowsBody(status) {
+    return status !== 204 && status !== 205 && status !== 304;
+  }
+  function simpleToResponse(simple) {
+    return new Response(responseAllowsBody(simple.statusCode) ? simple.responseBody : null, {
+      status: simple.statusCode,
+      headers: simple.responseHeaders
+    });
+  }
+  async function responseToSimple(res) {
+    const body = toLocalArrayBuffer(await res.arrayBuffer());
+    const headers = {};
+    res.headers.forEach((value, key) => {
+      headers[key] = value;
+    });
+    return { responseBody: body, statusCode: res.status, responseHeaders: headers };
+  }
+  const originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
+  unsafeWindow.fetch = async function fetch2(input, init2) {
+    let url;
+    if (input instanceof Request) {
+      url = input.url;
+    } else if (input instanceof URL) {
+      url = input.href;
+    } else {
+      url = input;
+    }
+    if (checkBlack(url)) {
+      console.log("blocked request: " + url);
+      return new Response(BLOCKED_BODY, {
+        status: 200,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+    const matched = matchingModifiers(url);
+    if (matched.length === 0) return originalFetch(input, init2);
+    const breaker = matched.find((m) => m.should_break(url));
+    if (breaker == null ? void 0 : breaker.make_response) {
+      return simpleToResponse(breaker.make_response(url));
+    }
+    if (!matched.some((m) => m.modify_response)) return originalFetch(input, init2);
+    const res = await originalFetch(input, init2);
+    try {
+      const simple = await responseToSimple(res.clone());
+      return simpleToResponse(applyModifiers(url, matched, simple));
+    } catch (error) {
+      console.error("[fqa:fetch] 修改响应失败，回退原始响应:", error);
+      return res;
+    }
+  };
+  const originalXMLHttpRequest = unsafeWindow.XMLHttpRequest;
+  const XHR_PROTO = originalXMLHttpRequest.prototype;
+  const XHR_DESC = {
+    status: Object.getOwnPropertyDescriptor(XHR_PROTO, "status"),
+    responseText: Object.getOwnPropertyDescriptor(XHR_PROTO, "responseText"),
+    response: Object.getOwnPropertyDescriptor(XHR_PROTO, "response")
+  };
+  const XHR_GETALL = XHR_PROTO.getAllResponseHeaders;
+  const XHR_GETONE = XHR_PROTO.getResponseHeader;
+  function readXhrHeaders(self) {
+    const headers = {};
+    const all = XHR_GETALL.call(self);
+    if (!all) return headers;
+    for (const line of all.trim().split(/[\r\n]+/)) {
+      const idx = line.indexOf(":");
+      if (idx > 0) {
+        headers[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+      }
+    }
+    return headers;
+  }
+  function readXhrBody(self) {
+    const type = self.responseType;
+    if (type === "arraybuffer") {
+      return toLocalArrayBuffer(XHR_DESC.response.get.call(self));
+    }
+    if (type === "json") {
+      const parsed = XHR_DESC.response.get.call(self);
+      return textToBody(JSON.stringify(parsed));
+    }
+    return textToBody(XHR_DESC.responseText.get.call(self));
+  }
+  unsafeWindow.XMLHttpRequest = class XMLHttpRequest extends originalXMLHttpRequest {
+    constructor() {
+      super(...arguments);
+      __publicField(this, "_blockedUrl");
+      __publicField(this, "_fxaUrl", "");
+      __publicField(this, "_fxaMatched", null);
+      __publicField(this, "_fxaBreaker", null);
+      __publicField(this, "_fxaApplied", false);
+      __publicField(this, "_fxaSimple", null);
+    }
+    open(method, url, async = true, user, password) {
+      this._fxaUrl = url;
+      this._fxaMatched = null;
+      this._fxaBreaker = null;
+      this._fxaApplied = false;
+      this._fxaSimple = null;
+      if (checkBlack(url)) {
+        console.log("blocked request: " + url);
+        this._blockedUrl = url;
+        return;
+      }
+      this._blockedUrl = void 0;
+      const matched = matchingModifiers(url);
+      const breaker = matched.find((m) => m.should_break(url));
+      if (breaker == null ? void 0 : breaker.make_response) {
+        this._fxaBreaker = breaker;
+        this._fxaMatched = matched;
+      } else if (matched.some((m) => m.modify_response)) {
+        this._fxaMatched = matched;
+      }
+      super.open(method, url, async, user, password);
+    }
+    setRequestHeader(name2, value) {
+      if (this._blockedUrl !== void 0) return;
+      super.setRequestHeader(name2, value);
+    }
+    send(body) {
+      var _a, _b;
+      if (this._blockedUrl !== void 0) {
+        this._synthesizeFromSimple({
+          responseBody: textToBody(BLOCKED_BODY),
+          statusCode: 200,
+          responseHeaders: { "content-type": "application/json" }
+        });
+        return;
+      }
+      if ((_a = this._fxaBreaker) == null ? void 0 : _a.make_response) {
+        this._synthesizeFromSimple(this._fxaBreaker.make_response(this._fxaUrl));
+        return;
+      }
+      if ((_b = this._fxaMatched) == null ? void 0 : _b.length) this._armTransform();
+      super.send(body);
+    }
+    abort() {
+      if (this._blockedUrl !== void 0) return;
+      super.abort();
+    }
+    getAllResponseHeaders() {
+      if (this._blockedUrl !== void 0) return "content-type: application/json\r\n";
+      return super.getAllResponseHeaders();
+    }
+    getResponseHeader(name2) {
+      if (this._blockedUrl !== void 0) {
+        return name2.toLowerCase() === "content-type" ? "application/json" : null;
+      }
+      return super.getResponseHeader(name2);
+    }
+    /**
+     * 中断请求后合成一个假响应并手动派发完成事件。
+     * 与 fetch 的 make_response 对齐，也复用了黑名单那条原本的 setTimeout 派发逻辑。
+     */
+    _synthesizeFromSimple(raw) {
+      const url = this._blockedUrl ?? this._fxaUrl;
+      const simple = resolveSimple(raw);
+      const headers = simple.responseHeaders;
+      const shadow = (prop, value) => Object.defineProperty(this, prop, { configurable: true, get: () => value });
+      setTimeout(() => {
+        const text = bodyToText(simple.responseBody);
+        shadow("readyState", 4);
+        shadow("status", simple.statusCode);
+        shadow("statusText", "OK");
+        shadow("responseURL", url);
+        const type = this.responseType;
+        shadow("responseText", type === "" || type === "text" ? text : "");
+        let value;
+        if (type === "json") {
+          try {
+            value = JSON.parse(text);
+          } catch {
+            value = text;
+          }
+        } else if (type === "arraybuffer") {
+          value = simple.responseBody;
+        } else if (type === "blob") {
+          value = new Blob([simple.responseBody]);
+        } else {
+          value = text;
+        }
+        shadow("response", value);
+        shadow(
+          "getAllResponseHeaders",
+          () => Object.entries(headers).map(([k, v]) => `${k}: ${v}\r
+`).join("")
+        );
+        shadow("getResponseHeader", (name2) => {
+          const lower = name2.toLowerCase();
+          const key = Object.keys(headers).find((k) => k.toLowerCase() === lower);
+          return key ? headers[key] : null;
+        });
+        this.dispatchEvent(new Event("readystatechange"));
+        this.dispatchEvent(new ProgressEvent("load"));
+        this.dispatchEvent(new ProgressEvent("loadend"));
+      }, 0);
+    }
+    /**
+     * 在实例上挂影子属性：等真实响应就绪（readyState=4），
+     * 页面第一次读取时才同步套用 modify_response 并缓存结果。
+     * 这样不用跟页面的 onload / onreadystatechange 争先后顺序。
+     */
+    _armTransform() {
+      const type = this.responseType;
+      if (type === "blob" || type === "document") return;
+      const self = this;
+      const matched = this._fxaMatched;
+      const url = this._fxaUrl;
+      const ensure = () => {
+        if (self._fxaApplied || self.readyState !== 4) return;
+        self._fxaSimple = resolveSimple(applyModifiers(url, matched, {
+          responseBody: readXhrBody(self),
+          statusCode: XHR_DESC.status.get.call(self),
+          responseHeaders: readXhrHeaders(self)
+        }));
+        self._fxaApplied = true;
+      };
+      Object.defineProperty(this, "status", {
+        configurable: true,
+        get() {
+          ensure();
+          if (self._fxaApplied) return self._fxaSimple.statusCode;
+          return XHR_DESC.status.get.call(self);
+        }
+      });
+      Object.defineProperty(this, "responseText", {
+        configurable: true,
+        get() {
+          ensure();
+          const t = self.responseType;
+          if (!self._fxaApplied || t !== "" && t !== "text") {
+            return XHR_DESC.responseText.get.call(self);
+          }
+          return bodyToText(self._fxaSimple.responseBody);
+        }
+      });
+      Object.defineProperty(this, "response", {
+        configurable: true,
+        get() {
+          ensure();
+          if (!self._fxaApplied) return XHR_DESC.response.get.call(self);
+          const body = self._fxaSimple.responseBody;
+          switch (self.responseType) {
+            case "":
+            case "text":
+              return bodyToText(body);
+            case "json":
+              return JSON.parse(bodyToText(body));
+            case "arraybuffer":
+              return body;
+            default:
+              return XHR_DESC.response.get.call(self);
+          }
+        }
+      });
+      this.getAllResponseHeaders = function getAllResponseHeaders() {
+        ensure();
+        if (!self._fxaApplied) return XHR_GETALL.call(self);
+        return Object.entries(self._fxaSimple.responseHeaders).map(([k, v]) => `${k}: ${v}\r
+`).join("");
+      };
+      this.getResponseHeader = function getResponseHeader(name2) {
+        ensure();
+        if (!self._fxaApplied) return XHR_GETONE.call(self, name2);
+        const lower = name2.toLowerCase();
+        const key = Object.keys(self._fxaSimple.responseHeaders).find((k) => k.toLowerCase() === lower);
+        return key ? self._fxaSimple.responseHeaders[key] : null;
+      };
+    }
+  };
+  const _exports$5 = [];
+  let userState = {
+    isLogin: false,
+    userInfo: null
+  };
+  if (read("userState")) {
+    userState = read("userState");
+  }
+  console.log("userState:", userState);
+  async function getDetailedUserInfo() {
+    if (!(userState == null ? void 0 : userState.isLogin) || !(userState == null ? void 0 : userState.userInfo)) {
+      return null;
+    }
+    if (userState.userInfo.gender !== void 0 && userState.userInfo.recommend_gender !== void 0 && userState.userInfo.fans_num !== void 0 && userState.userInfo.following_num !== void 0 && userState.userInfo.is_author !== void 0 && userState.userInfo.author_desc !== void 0 && userState.userInfo.read_book_num !== void 0 && userState.userInfo.read_book_time !== void 0) {
+      return userState.userInfo;
+    }
+    const response = await fetch$1("https://fanqienovel.com/reading/user/basic_info/get/v?aid=1967");
+    const j = await response.json();
+    if (j == null ? void 0 : j.data) {
+      const data = j.data;
+      userState.userInfo.gender = data.profile_gender;
+      userState.userInfo.recommend_gender = data.gender;
+      userState.userInfo.fans_num = data.fans_num;
+      userState.userInfo.following_num = data.follow_user_num;
+      userState.userInfo.is_author = data.is_author;
+      userState.userInfo.author_desc = data.author_desc;
+      userState.userInfo.read_book_num = data.read_book_num;
+      userState.userInfo.read_book_time = BigInt(data.read_book_time);
+      return userState.userInfo;
+    }
+    write("userState", userState);
+    return userState.userInfo;
+  }
+  async function checkLogin() {
+    var _a, _b, _c, _d, _e;
+    const response = await fetch$1("https://fanqienovel.com/api/user/info/v2");
+    const j = await response.json();
+    const _userInfo = {
+      id: (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.id,
+      username: (_b = j == null ? void 0 : j.data) == null ? void 0 : _b.name,
+      avatar: (_c = j == null ? void 0 : j.data) == null ? void 0 : _c.avatar,
+      desc: (_d = j == null ? void 0 : j.data) == null ? void 0 : _d.desc,
+      age: (_e = j == null ? void 0 : j.data) == null ? void 0 : _e.age
+    };
+    if (j.code !== -1) {
+      userState.isLogin = true;
+      userState.userInfo = _userInfo;
+      write("userState", userState);
+      return true;
+    } else {
+      del("userState");
+      return false;
+    }
+  }
+  async function init() {
+    var _a;
+    await checkLogin();
+    if (userState.isLogin) {
+      console.log("Hello, ", (_a = userState == null ? void 0 : userState.userInfo) == null ? void 0 : _a.username);
+    }
+  }
   let currentBook = null;
   let latestItemId = null;
+  let currentChapterWithContent = null;
   const SCRIPT_CONTAINER_ID = "fqa-reader-content";
   let comicObserver = null;
+  addResponseModifier({
+    matcher: (url) => url.indexOf("/reading/bookapi/bookshelf/check/") !== -1 && location.pathname.startsWith("/reader"),
+    should_break: () => true,
+    make_response: () => {
+      const body = JSON.stringify({
+        code: 0,
+        message: "SUCCESS",
+        data: 0
+      });
+      return {
+        responseBody: body,
+        statusCode: 200,
+        responseHeaders: {
+          "content-type": "application/json; charset=utf-8",
+          "content-length": String(new TextEncoder().encode(body).length)
+        }
+      };
+    }
+  });
   function ensureScriptContainer(readerContainer, comic) {
     let scriptContainer = document.getElementById(SCRIPT_CONTAINER_ID);
     if (!scriptContainer) {
@@ -4960,7 +5508,7 @@
     return scriptContainer;
   }
   async function insertContent() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
     const itemId2 = ((_a = window.location.pathname.split("/").pop()) == null ? void 0 : _a.substring(0, 19)) || "";
     if (!itemId2) {
       console.warn("No item_id found in URL");
@@ -4977,6 +5525,7 @@
       return;
     }
     console.log("Chapter:", chapter);
+    currentChapterWithContent = chapter;
     const pageState = unsafeWindow.__INITIAL_STATE__;
     const chapterTitle = ((_b = chapter.novel_data) == null ? void 0 : _b.title) || ((_d = (_c = pageState == null ? void 0 : pageState.reader) == null ? void 0 : _c.chapterData) == null ? void 0 : _d.title);
     if (typeof chapter.content === "string") {
@@ -5121,15 +5670,36 @@
           }
         }
         let updateTimeSpans = (muyeReaderSubtitle == null ? void 0 : muyeReaderSubtitle.querySelectorAll("span.desc-item")) || [];
-        if (updateTimeSpans.length >= 2) {
+        console.log("spans len", updateTimeSpans.length, "assertIsOffshelf", updateTimeSpans.length < 3);
+        if (updateTimeSpans.length >= 3) {
+          console.log("if");
           let updateTimeSpan = updateTimeSpans[updateTimeSpans.length - 1];
           let uttspan = updateTimeSpan.firstChild;
           uttspan == null ? void 0 : uttspan.remove();
           updateTimeSpan.innerHTML = "更新时间：" + currentChapterItem.update_time;
         } else {
-          let updateTimeSpan = document.createElement("span");
+          console.log("else");
+          (_k = updateTimeSpans[updateTimeSpans.length - 1]) == null ? void 0 : _k.remove();
+          const updateTimeSpan = document.createElement("span");
           updateTimeSpan.className = "desc-item";
           updateTimeSpan.textContent = `更新时间：${currentChapterItem.update_time}`;
+          console.log("assert equal", currentChapterItem.item_id === ((_l = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _l.item_id));
+          console.log("wordcnt", (_m = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _m.chapter_word_number);
+          const c = document.getElementById("fqa-current-chapter-volume");
+          let b = null;
+          if (currentChapterItem.item_id === ((_n = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _n.item_id)) {
+            const wordCntSpan = document.createElement("span");
+            wordCntSpan.className = "desc-item";
+            wordCntSpan.textContent = `本章字数：${(_o = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _o.chapter_word_number}字`;
+            console.log(wordCntSpan);
+            if (c) {
+              console.log("insert wordcnt");
+              c.insertAdjacentElement("afterend", wordCntSpan);
+            }
+            b = wordCntSpan;
+          }
+          console.log("insert update time");
+          (_p = b || c) == null ? void 0 : _p.insertAdjacentElement("afterend", updateTimeSpan);
         }
       }
     }
@@ -5163,6 +5733,13 @@
   }
   async function onLoad$1() {
     var _a;
+    async function fetchBookInfo() {
+      var _a2, _b;
+      const pageState = unsafeWindow.__INITIAL_STATE__;
+      const bid = (_b = (_a2 = pageState == null ? void 0 : pageState.reader) == null ? void 0 : _a2.chapterData) == null ? void 0 : _b.bookId;
+      currentBook = await getBookInfoAndCatalog(bid);
+    }
+    void fetchBookInfo();
     const toolbar = document.querySelector("div.reader-toolbar > div");
     const toolbarButton = document.querySelector("div.reader-toolbar > div > div:nth-child(3)");
     if (toolbarButton && toolbar) {
@@ -5184,13 +5761,53 @@
       c.addEventListener("click", () => void startAudioPlay());
       toolbar.appendChild(c);
     }
+    const bookshelfButton = document.querySelector("div.reader-toolbar-item");
+    if (userState.isLogin && bookshelfButton && bookshelfButton.innerHTML.includes("书架")) {
+      const shelf = cloneElement(bookshelfButton);
+      bookshelfButton.replaceWith(shelf);
+      let inShelf = false;
+      let ready = false;
+      let busy = false;
+      async function ensureBookshelfState() {
+        while (!currentBook) {
+          await sleep(50);
+        }
+        inShelf = await isInBookshelf(currentBook.book_id);
+        shelf.classList.toggle("reader-toolbar-item-disabled", inShelf);
+        const label = shelf.lastChild;
+        if (label) label.textContent = inShelf ? "已在书架" : "加入书架";
+        ready = true;
+      }
+      void ensureBookshelfState();
+      shelf.addEventListener("click", async () => {
+        const book = currentBook;
+        if (!ready || busy || !book) return;
+        busy = true;
+        try {
+          if (inShelf) {
+            if (settings$1.shelfRemoveConfirm) {
+              if (!unsafeWindow.confirm(`确定要把《${book.title ?? "这本书"}》从书架移出吗？`)) return;
+            }
+            await removeFromBookshelf(book.book_id);
+          } else {
+            await addToBookshelf(book.book_id);
+          }
+          await ensureBookshelfState();
+        } catch (error) {
+          console.error("[fqa:reader] 书架操作失败:", error);
+          unsafeWindow.alert(error instanceof Error ? error.message : "书架操作失败");
+        } finally {
+          busy = false;
+        }
+      });
+    }
     document.querySelector("div.muye-reader-btns");
     await insertContent();
   }
   function readerFilter(path, _query, _hash) {
     return path.startsWith("/reader") || path.startsWith("reader");
   }
-  const _exports$5 = [
+  const _exports$4 = [
     {
       id: "readerHook_load",
       event: "load",
@@ -5210,161 +5827,8 @@
       filter: readerFilter
     }
   ];
-  const blackList = [
-    "mcs.zijieapi.com",
-    "vcs.zijieapi.com/vc/setting",
-    "mon.zijieapi.com",
-    "mssdk.bytedance.com/web/common",
-    "hm.baidu.com"
-  ];
-  const BLOCKED_BODY = JSON.stringify({
-    e: 0,
-    sc: 10,
-    tc: 10
-  });
-  function checkBlack(url) {
-    if (!settings$1.blockReport) return false;
-    return blackList.some((black) => url.includes(black));
-  }
-  const originalFetch = unsafeWindow.fetch.bind(unsafeWindow);
-  unsafeWindow.fetch = function fetch2(input, init2) {
-    let url;
-    if (input instanceof Request) {
-      url = input.url;
-    } else if (input instanceof URL) {
-      url = input.href;
-    } else {
-      url = input;
-    }
-    if (checkBlack(url)) {
-      console.log("blocked request: " + url);
-      return Promise.resolve(new Response(BLOCKED_BODY, {
-        status: 200,
-        headers: { "Content-Type": "application/json" }
-      }));
-    }
-    return originalFetch(input, init2);
-  };
-  const originalXMLHttpRequest = unsafeWindow.XMLHttpRequest;
-  unsafeWindow.XMLHttpRequest = class XMLHttpRequest extends originalXMLHttpRequest {
-    constructor() {
-      super(...arguments);
-      __publicField(this, "_blockedUrl");
-    }
-    open(method, url, async = true, user, password) {
-      if (checkBlack(url)) {
-        console.log("blocked request: " + url);
-        this._blockedUrl = url;
-        return;
-      }
-      this._blockedUrl = void 0;
-      super.open(method, url, async, user, password);
-    }
-    setRequestHeader(name2, value) {
-      if (this._blockedUrl !== void 0) return;
-      super.setRequestHeader(name2, value);
-    }
-    send(body) {
-      if (this._blockedUrl === void 0) {
-        super.send(body);
-        return;
-      }
-      const url = this._blockedUrl;
-      const shadow = (prop, value) => Object.defineProperty(this, prop, { configurable: true, get: () => value });
-      setTimeout(() => {
-        shadow("readyState", 4);
-        shadow("status", 200);
-        shadow("statusText", "OK");
-        shadow("responseURL", url);
-        shadow("responseText", this.responseType === "" || this.responseType === "text" ? BLOCKED_BODY : "");
-        shadow("response", this.responseType === "json" ? {
-          "e": 0,
-          "sc": 10,
-          "tc": 10
-        } : BLOCKED_BODY);
-        this.dispatchEvent(new Event("readystatechange"));
-        this.dispatchEvent(new ProgressEvent("load"));
-        this.dispatchEvent(new ProgressEvent("loadend"));
-      }, 0);
-    }
-    abort() {
-      if (this._blockedUrl !== void 0) return;
-      super.abort();
-    }
-    getAllResponseHeaders() {
-      if (this._blockedUrl !== void 0) return "content-type: application/json\r\n";
-      return super.getAllResponseHeaders();
-    }
-    getResponseHeader(name2) {
-      if (this._blockedUrl !== void 0) {
-        return name2.toLowerCase() === "content-type" ? "application/json" : null;
-      }
-      return super.getResponseHeader(name2);
-    }
-  };
-  const _exports$4 = [];
-  let userState = {
-    isLogin: false,
-    userInfo: null
-  };
-  if (read("userState")) {
-    userState = read("userState");
-  }
-  console.log("userState:", userState);
-  async function getDetailedUserInfo() {
-    if (!(userState == null ? void 0 : userState.isLogin) || !(userState == null ? void 0 : userState.userInfo)) {
-      return null;
-    }
-    if (userState.userInfo.gender !== void 0 && userState.userInfo.recommend_gender !== void 0 && userState.userInfo.fans_num !== void 0 && userState.userInfo.following_num !== void 0 && userState.userInfo.is_author !== void 0 && userState.userInfo.author_desc !== void 0 && userState.userInfo.read_book_num !== void 0 && userState.userInfo.read_book_time !== void 0) {
-      return userState.userInfo;
-    }
-    const response = await fetch$1("https://fanqienovel.com/reading/user/basic_info/get/v?aid=1967");
-    const j = await response.json();
-    if (j == null ? void 0 : j.data) {
-      const data = j.data;
-      userState.userInfo.gender = data.profile_gender;
-      userState.userInfo.recommend_gender = data.gender;
-      userState.userInfo.fans_num = data.fans_num;
-      userState.userInfo.following_num = data.follow_user_num;
-      userState.userInfo.is_author = data.is_author;
-      userState.userInfo.author_desc = data.author_desc;
-      userState.userInfo.read_book_num = data.read_book_num;
-      userState.userInfo.read_book_time = BigInt(data.read_book_time);
-      return userState.userInfo;
-    }
-    write("userState", userState);
-    return userState.userInfo;
-  }
-  async function checkLogin() {
-    var _a, _b, _c, _d, _e, _f;
-    const response = await fetch$1("https://fanqienovel.com/api/user/info/v2");
-    const j = await response.json();
-    const _userInfo = {
-      id: (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.id,
-      username: (_b = j == null ? void 0 : j.data) == null ? void 0 : _b.name,
-      avatar: (_c = j == null ? void 0 : j.data) == null ? void 0 : _c.avatar,
-      desc: (_d = j == null ? void 0 : j.data) == null ? void 0 : _d.desc,
-      age: (_e = j == null ? void 0 : j.data) == null ? void 0 : _e.age
-    };
-    if (((_f = j == null ? void 0 : j.data) == null ? void 0 : _f.id) > 1) {
-      userState.isLogin = true;
-      userState.userInfo = _userInfo;
-      write("userState", userState);
-      return true;
-    } else {
-      del("userState");
-      return false;
-    }
-  }
-  async function init() {
-    var _a;
-    await checkLogin();
-    if (userState.isLogin) {
-      console.log("Hello, ", (_a = userState == null ? void 0 : userState.userInfo) == null ? void 0 : _a.username);
-    }
-  }
   const bookshelf = '<svg xmlns="http://www.w3.org/2000/svg"\r\n     width="24"\r\n     height="24"\r\n     viewBox="0 0 24 24"\r\n     fill="none"\r\n     stroke="currentColor"\r\n     stroke-width="1.2"\r\n     stroke-linecap="round"\r\n     stroke-linejoin="round">\r\n  <path d="M3.5 20h17"/>\r\n  <rect x="5" y="7" width="3.5" height="13" rx="0.8"/>\r\n  <rect x="8.5" y="5" width="4" height="15" rx="0.8"/>\r\n  <path d="M15.1 6.2 18 5.5l3.1 13.6-2.9.7z"/>\r\n  <path d="M9.8 8h1.4M6.1 10h1.3M17 8.8l1.3-.3"/>\r\n</svg>';
-  const settings = '<?xml version="1.0" encoding="utf-8"?>\r\n<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M12 8.25C9.92894 8.25 8.25 9.92893 8.25 12C8.25 14.0711 9.92894 15.75 12 15.75C14.0711 15.75 15.75 14.0711 15.75 12C15.75 9.92893 14.0711 8.25 12 8.25ZM9.75 12C9.75 10.7574 10.7574 9.75 12 9.75C13.2426 9.75 14.25 10.7574 14.25 12C14.25 13.2426 13.2426 14.25 12 14.25C10.7574 14.25 9.75 13.2426 9.75 12Z"\r\n        fill="#000000" />\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M11.9747 1.25C11.5303 1.24999 11.1592 1.24999 10.8546 1.27077C10.5375 1.29241 10.238 1.33905 9.94761 1.45933C9.27379 1.73844 8.73843 2.27379 8.45932 2.94762C8.31402 3.29842 8.27467 3.66812 8.25964 4.06996C8.24756 4.39299 8.08454 4.66251 7.84395 4.80141C7.60337 4.94031 7.28845 4.94673 7.00266 4.79568C6.64714 4.60777 6.30729 4.45699 5.93083 4.40743C5.20773 4.31223 4.47642 4.50819 3.89779 4.95219C3.64843 5.14353 3.45827 5.3796 3.28099 5.6434C3.11068 5.89681 2.92517 6.21815 2.70294 6.60307L2.67769 6.64681C2.45545 7.03172 2.26993 7.35304 2.13562 7.62723C1.99581 7.91267 1.88644 8.19539 1.84541 8.50701C1.75021 9.23012 1.94617 9.96142 2.39016 10.5401C2.62128 10.8412 2.92173 11.0602 3.26217 11.2741C3.53595 11.4461 3.68788 11.7221 3.68786 12C3.68785 12.2778 3.53592 12.5538 3.26217 12.7258C2.92169 12.9397 2.62121 13.1587 2.39007 13.4599C1.94607 14.0385 1.75012 14.7698 1.84531 15.4929C1.88634 15.8045 1.99571 16.0873 2.13552 16.3727C2.26983 16.6469 2.45535 16.9682 2.67758 17.3531L2.70284 17.3969C2.92507 17.7818 3.11058 18.1031 3.28089 18.3565C3.45817 18.6203 3.64833 18.8564 3.89769 19.0477C4.47632 19.4917 5.20763 19.6877 5.93073 19.5925C6.30717 19.5429 6.647 19.3922 7.0025 19.2043C7.28833 19.0532 7.60329 19.0596 7.8439 19.1986C8.08452 19.3375 8.24756 19.607 8.25964 19.9301C8.27467 20.3319 8.31403 20.7016 8.45932 21.0524C8.73843 21.7262 9.27379 22.2616 9.94761 22.5407C10.238 22.661 10.5375 22.7076 10.8546 22.7292C11.1592 22.75 11.5303 22.75 11.9747 22.75H12.0252C12.4697 22.75 12.8407 22.75 13.1454 22.7292C13.4625 22.7076 13.762 22.661 14.0524 22.5407C14.7262 22.2616 15.2616 21.7262 15.5407 21.0524C15.686 20.7016 15.7253 20.3319 15.7403 19.93C15.7524 19.607 15.9154 19.3375 16.156 19.1985C16.3966 19.0596 16.7116 19.0532 16.9974 19.2042C17.3529 19.3921 17.6927 19.5429 18.0692 19.5924C18.7923 19.6876 19.5236 19.4917 20.1022 19.0477C20.3516 18.8563 20.5417 18.6203 20.719 18.3565C20.8893 18.1031 21.0748 17.7818 21.297 17.3969L21.3223 17.3531C21.5445 16.9682 21.7301 16.6468 21.8644 16.3726C22.0042 16.0872 22.1135 15.8045 22.1546 15.4929C22.2498 14.7697 22.0538 14.0384 21.6098 13.4598C21.3787 13.1586 21.0782 12.9397 20.7378 12.7258C20.464 12.5538 20.3121 12.2778 20.3121 11.9999C20.3121 11.7221 20.464 11.4462 20.7377 11.2742C21.0783 11.0603 21.3788 10.8414 21.6099 10.5401C22.0539 9.96149 22.2499 9.23019 22.1547 8.50708C22.1136 8.19546 22.0043 7.91274 21.8645 7.6273C21.7302 7.35313 21.5447 7.03183 21.3224 6.64695L21.2972 6.60318C21.0749 6.21825 20.8894 5.89688 20.7191 5.64347C20.5418 5.37967 20.3517 5.1436 20.1023 4.95225C19.5237 4.50826 18.7924 4.3123 18.0692 4.4075C17.6928 4.45706 17.353 4.60782 16.9975 4.79572C16.7117 4.94679 16.3967 4.94036 16.1561 4.80144C15.9155 4.66253 15.7524 4.39297 15.7403 4.06991C15.7253 3.66808 15.686 3.2984 15.5407 2.94762C15.2616 2.27379 14.7262 1.73844 14.0524 1.45933C13.762 1.33905 13.4625 1.29241 13.1454 1.27077C12.8407 1.24999 12.4697 1.24999 12.0252 1.25H11.9747ZM10.5216 2.84515C10.5988 2.81319 10.716 2.78372 10.9567 2.76729C11.2042 2.75041 11.5238 2.75 12 2.75C12.4762 2.75 12.7958 2.75041 13.0432 2.76729C13.284 2.78372 13.4012 2.81319 13.4783 2.84515C13.7846 2.97202 14.028 3.21536 14.1548 3.52165C14.1949 3.61826 14.228 3.76887 14.2414 4.12597C14.271 4.91835 14.68 5.68129 15.4061 6.10048C16.1321 6.51968 16.9974 6.4924 17.6984 6.12188C18.0143 5.9549 18.1614 5.90832 18.265 5.89467C18.5937 5.8514 18.9261 5.94047 19.1891 6.14228C19.2554 6.19312 19.3395 6.27989 19.4741 6.48016C19.6125 6.68603 19.7726 6.9626 20.0107 7.375C20.2488 7.78741 20.4083 8.06438 20.5174 8.28713C20.6235 8.50382 20.6566 8.62007 20.6675 8.70287C20.7108 9.03155 20.6217 9.36397 20.4199 9.62698C20.3562 9.70995 20.2424 9.81399 19.9397 10.0041C19.2684 10.426 18.8122 11.1616 18.8121 11.9999C18.8121 12.8383 19.2683 13.574 19.9397 13.9959C20.2423 14.186 20.3561 14.29 20.4198 14.373C20.6216 14.636 20.7107 14.9684 20.6674 15.2971C20.6565 15.3799 20.6234 15.4961 20.5173 15.7128C20.4082 15.9355 20.2487 16.2125 20.0106 16.6249C19.7725 17.0373 19.6124 17.3139 19.474 17.5198C19.3394 17.72 19.2553 17.8068 19.189 17.8576C18.926 18.0595 18.5936 18.1485 18.2649 18.1053C18.1613 18.0916 18.0142 18.045 17.6983 17.8781C16.9973 17.5075 16.132 17.4803 15.4059 17.8995C14.68 18.3187 14.271 19.0816 14.2414 19.874C14.228 20.2311 14.1949 20.3817 14.1548 20.4784C14.028 20.7846 13.7846 21.028 13.4783 21.1549C13.4012 21.1868 13.284 21.2163 13.0432 21.2327C12.7958 21.2496 12.4762 21.25 12 21.25C11.5238 21.25 11.2042 21.2496 10.9567 21.2327C10.716 21.2163 10.5988 21.1868 10.5216 21.1549C10.2154 21.028 9.97201 20.7846 9.84514 20.4784C9.80512 20.3817 9.77195 20.2311 9.75859 19.874C9.72896 19.0817 9.31997 18.3187 8.5939 17.8995C7.86784 17.4803 7.00262 17.5076 6.30158 17.8781C5.98565 18.0451 5.83863 18.0917 5.73495 18.1053C5.40626 18.1486 5.07385 18.0595 4.81084 17.8577C4.74458 17.8069 4.66045 17.7201 4.52586 17.5198C4.38751 17.314 4.22736 17.0374 3.98926 16.625C3.75115 16.2126 3.59171 15.9356 3.4826 15.7129C3.37646 15.4962 3.34338 15.3799 3.33248 15.2971C3.28921 14.9684 3.37828 14.636 3.5801 14.373C3.64376 14.2901 3.75761 14.186 4.0602 13.9959C4.73158 13.5741 5.18782 12.8384 5.18786 12.0001C5.18791 11.1616 4.73165 10.4259 4.06021 10.004C3.75769 9.81389 3.64385 9.70987 3.58019 9.62691C3.37838 9.3639 3.28931 9.03149 3.33258 8.7028C3.34348 8.62001 3.37656 8.50375 3.4827 8.28707C3.59181 8.06431 3.75125 7.78734 3.98935 7.37493C4.22746 6.96253 4.3876 6.68596 4.52596 6.48009C4.66055 6.27983 4.74468 6.19305 4.81093 6.14222C5.07395 5.9404 5.40636 5.85133 5.73504 5.8946C5.83873 5.90825 5.98576 5.95483 6.30173 6.12184C7.00273 6.49235 7.86791 6.51962 8.59394 6.10045C9.31998 5.68128 9.72896 4.91837 9.75859 4.12602C9.77195 3.76889 9.80512 3.61827 9.84514 3.52165C9.97201 3.21536 10.2154 2.97202 10.5216 2.84515Z"\r\n        fill="#000000" />\r\n</svg>';
+  const settings = '<?xml version="1.0" encoding="utf-8"?>\r\n<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M12 8.25C9.92894 8.25 8.25 9.92893 8.25 12C8.25 14.0711 9.92894 15.75 12 15.75C14.0711 15.75 15.75 14.0711 15.75 12C15.75 9.92893 14.0711 8.25 12 8.25ZM9.75 12C9.75 10.7574 10.7574 9.75 12 9.75C13.2426 9.75 14.25 10.7574 14.25 12C14.25 13.2426 13.2426 14.25 12 14.25C10.7574 14.25 9.75 13.2426 9.75 12Z"\r\n        fill="currentColor" />\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M11.9747 1.25C11.5303 1.24999 11.1592 1.24999 10.8546 1.27077C10.5375 1.29241 10.238 1.33905 9.94761 1.45933C9.27379 1.73844 8.73843 2.27379 8.45932 2.94762C8.31402 3.29842 8.27467 3.66812 8.25964 4.06996C8.24756 4.39299 8.08454 4.66251 7.84395 4.80141C7.60337 4.94031 7.28845 4.94673 7.00266 4.79568C6.64714 4.60777 6.30729 4.45699 5.93083 4.40743C5.20773 4.31223 4.47642 4.50819 3.89779 4.95219C3.64843 5.14353 3.45827 5.3796 3.28099 5.6434C3.11068 5.89681 2.92517 6.21815 2.70294 6.60307L2.67769 6.64681C2.45545 7.03172 2.26993 7.35304 2.13562 7.62723C1.99581 7.91267 1.88644 8.19539 1.84541 8.50701C1.75021 9.23012 1.94617 9.96142 2.39016 10.5401C2.62128 10.8412 2.92173 11.0602 3.26217 11.2741C3.53595 11.4461 3.68788 11.7221 3.68786 12C3.68785 12.2778 3.53592 12.5538 3.26217 12.7258C2.92169 12.9397 2.62121 13.1587 2.39007 13.4599C1.94607 14.0385 1.75012 14.7698 1.84531 15.4929C1.88634 15.8045 1.99571 16.0873 2.13552 16.3727C2.26983 16.6469 2.45535 16.9682 2.67758 17.3531L2.70284 17.3969C2.92507 17.7818 3.11058 18.1031 3.28089 18.3565C3.45817 18.6203 3.64833 18.8564 3.89769 19.0477C4.47632 19.4917 5.20763 19.6877 5.93073 19.5925C6.30717 19.5429 6.647 19.3922 7.0025 19.2043C7.28833 19.0532 7.60329 19.0596 7.8439 19.1986C8.08452 19.3375 8.24756 19.607 8.25964 19.9301C8.27467 20.3319 8.31403 20.7016 8.45932 21.0524C8.73843 21.7262 9.27379 22.2616 9.94761 22.5407C10.238 22.661 10.5375 22.7076 10.8546 22.7292C11.1592 22.75 11.5303 22.75 11.9747 22.75H12.0252C12.4697 22.75 12.8407 22.75 13.1454 22.7292C13.4625 22.7076 13.762 22.661 14.0524 22.5407C14.7262 22.2616 15.2616 21.7262 15.5407 21.0524C15.686 20.7016 15.7253 20.3319 15.7403 19.93C15.7524 19.607 15.9154 19.3375 16.156 19.1985C16.3966 19.0596 16.7116 19.0532 16.9974 19.2042C17.3529 19.3921 17.6927 19.5429 18.0692 19.5924C18.7923 19.6876 19.5236 19.4917 20.1022 19.0477C20.3516 18.8563 20.5417 18.6203 20.719 18.3565C20.8893 18.1031 21.0748 17.7818 21.297 17.3969L21.3223 17.3531C21.5445 16.9682 21.7301 16.6468 21.8644 16.3726C22.0042 16.0872 22.1135 15.8045 22.1546 15.4929C22.2498 14.7697 22.0538 14.0384 21.6098 13.4598C21.3787 13.1586 21.0782 12.9397 20.7378 12.7258C20.464 12.5538 20.3121 12.2778 20.3121 11.9999C20.3121 11.7221 20.464 11.4462 20.7377 11.2742C21.0783 11.0603 21.3788 10.8414 21.6099 10.5401C22.0539 9.96149 22.2499 9.23019 22.1547 8.50708C22.1136 8.19546 22.0043 7.91274 21.8645 7.6273C21.7302 7.35313 21.5447 7.03183 21.3224 6.64695L21.2972 6.60318C21.0749 6.21825 20.8894 5.89688 20.7191 5.64347C20.5418 5.37967 20.3517 5.1436 20.1023 4.95225C19.5237 4.50826 18.7924 4.3123 18.0692 4.4075C17.6928 4.45706 17.353 4.60782 16.9975 4.79572C16.7117 4.94679 16.3967 4.94036 16.1561 4.80144C15.9155 4.66253 15.7524 4.39297 15.7403 4.06991C15.7253 3.66808 15.686 3.2984 15.5407 2.94762C15.2616 2.27379 14.7262 1.73844 14.0524 1.45933C13.762 1.33905 13.4625 1.29241 13.1454 1.27077C12.8407 1.24999 12.4697 1.24999 12.0252 1.25H11.9747ZM10.5216 2.84515C10.5988 2.81319 10.716 2.78372 10.9567 2.76729C11.2042 2.75041 11.5238 2.75 12 2.75C12.4762 2.75 12.7958 2.75041 13.0432 2.76729C13.284 2.78372 13.4012 2.81319 13.4783 2.84515C13.7846 2.97202 14.028 3.21536 14.1548 3.52165C14.1949 3.61826 14.228 3.76887 14.2414 4.12597C14.271 4.91835 14.68 5.68129 15.4061 6.10048C16.1321 6.51968 16.9974 6.4924 17.6984 6.12188C18.0143 5.9549 18.1614 5.90832 18.265 5.89467C18.5937 5.8514 18.9261 5.94047 19.1891 6.14228C19.2554 6.19312 19.3395 6.27989 19.4741 6.48016C19.6125 6.68603 19.7726 6.9626 20.0107 7.375C20.2488 7.78741 20.4083 8.06438 20.5174 8.28713C20.6235 8.50382 20.6566 8.62007 20.6675 8.70287C20.7108 9.03155 20.6217 9.36397 20.4199 9.62698C20.3562 9.70995 20.2424 9.81399 19.9397 10.0041C19.2684 10.426 18.8122 11.1616 18.8121 11.9999C18.8121 12.8383 19.2683 13.574 19.9397 13.9959C20.2423 14.186 20.3561 14.29 20.4198 14.373C20.6216 14.636 20.7107 14.9684 20.6674 15.2971C20.6565 15.3799 20.6234 15.4961 20.5173 15.7128C20.4082 15.9355 20.2487 16.2125 20.0106 16.6249C19.7725 17.0373 19.6124 17.3139 19.474 17.5198C19.3394 17.72 19.2553 17.8068 19.189 17.8576C18.926 18.0595 18.5936 18.1485 18.2649 18.1053C18.1613 18.0916 18.0142 18.045 17.6983 17.8781C16.9973 17.5075 16.132 17.4803 15.4059 17.8995C14.68 18.3187 14.271 19.0816 14.2414 19.874C14.228 20.2311 14.1949 20.3817 14.1548 20.4784C14.028 20.7846 13.7846 21.028 13.4783 21.1549C13.4012 21.1868 13.284 21.2163 13.0432 21.2327C12.7958 21.2496 12.4762 21.25 12 21.25C11.5238 21.25 11.2042 21.2496 10.9567 21.2327C10.716 21.2163 10.5988 21.1868 10.5216 21.1549C10.2154 21.028 9.97201 20.7846 9.84514 20.4784C9.80512 20.3817 9.77195 20.2311 9.75859 19.874C9.72896 19.0817 9.31997 18.3187 8.5939 17.8995C7.86784 17.4803 7.00262 17.5076 6.30158 17.8781C5.98565 18.0451 5.83863 18.0917 5.73495 18.1053C5.40626 18.1486 5.07385 18.0595 4.81084 17.8577C4.74458 17.8069 4.66045 17.7201 4.52586 17.5198C4.38751 17.314 4.22736 17.0374 3.98926 16.625C3.75115 16.2126 3.59171 15.9356 3.4826 15.7129C3.37646 15.4962 3.34338 15.3799 3.33248 15.2971C3.28921 14.9684 3.37828 14.636 3.5801 14.373C3.64376 14.2901 3.75761 14.186 4.0602 13.9959C4.73158 13.5741 5.18782 12.8384 5.18786 12.0001C5.18791 11.1616 4.73165 10.4259 4.06021 10.004C3.75769 9.81389 3.64385 9.70987 3.58019 9.62691C3.37838 9.3639 3.28931 9.03149 3.33258 8.7028C3.34348 8.62001 3.37656 8.50375 3.4827 8.28707C3.59181 8.06431 3.75125 7.78734 3.98935 7.37493C4.22746 6.96253 4.3876 6.68596 4.52596 6.48009C4.66055 6.27983 4.74468 6.19305 4.81093 6.14222C5.07395 5.9404 5.40636 5.85133 5.73504 5.8946C5.83873 5.90825 5.98576 5.95483 6.30173 6.12184C7.00273 6.49235 7.86791 6.51962 8.59394 6.10045C9.31998 5.68128 9.72896 4.91837 9.75859 4.12602C9.77195 3.76889 9.80512 3.61827 9.84514 3.52165C9.97201 3.21536 10.2154 2.97202 10.5216 2.84515Z"\r\n        fill="currentColor" />\r\n</svg>';
   const name = "fanqie-assistant";
   const version = "0.0.6";
   const _hoisted_1$9 = {
@@ -5379,72 +5843,74 @@
   const _hoisted_5$8 = { class: "fqa-set-row" };
   const _hoisted_6$8 = { class: "fqa-set-row" };
   const _hoisted_7$6 = { class: "fqa-set-row" };
-  const _hoisted_8$6 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_8$6 = { class: "fqa-set-row" };
   const _hoisted_9$6 = { class: "fqa-set-row" };
   const _hoisted_10$6 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_11$5 = ["disabled"];
+  const _hoisted_11$5 = { class: "fqa-set-row" };
   const _hoisted_12$5 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_13$4 = { class: "fqa-set-radios" };
-  const _hoisted_14$4 = { class: "fqa-set-radio" };
-  const _hoisted_15$2 = { class: "fqa-set-radio" };
-  const _hoisted_16$1 = { class: "fqa-set-row" };
-  const _hoisted_17$1 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_18$1 = {
+  const _hoisted_13$4 = ["disabled"];
+  const _hoisted_14$4 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_15$2 = { class: "fqa-set-radios" };
+  const _hoisted_16$1 = { class: "fqa-set-radio" };
+  const _hoisted_17$1 = { class: "fqa-set-radio" };
+  const _hoisted_18$1 = { class: "fqa-set-row" };
+  const _hoisted_19$1 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_20 = {
     class: "fqa-set-row",
     style: { "padding-top": "0", "border-bottom": "none" }
   };
-  const _hoisted_19$1 = { class: "fqa-set-row" };
-  const _hoisted_20 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_21 = { class: "fqa-set-radios" };
-  const _hoisted_22 = { class: "fqa-set-radio" };
-  const _hoisted_23 = { class: "fqa-set-radio" };
-  const _hoisted_24 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_25 = { class: "fqa-set-radios" };
-  const _hoisted_26 = { class: "fqa-set-radio" };
-  const _hoisted_27 = { class: "fqa-set-radio" };
-  const _hoisted_28 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_29 = {
-    class: "fqa-set-row",
-    style: { "padding-top": "0", "border-bottom": "none" }
-  };
-  const _hoisted_30 = {
-    class: "fqa-set-row",
-    style: { "padding-top": "0", "border-bottom": "none" }
-  };
+  const _hoisted_21 = { class: "fqa-set-row" };
+  const _hoisted_22 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_23 = { class: "fqa-set-radios" };
+  const _hoisted_24 = { class: "fqa-set-radio" };
+  const _hoisted_25 = { class: "fqa-set-radio" };
+  const _hoisted_26 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_27 = { class: "fqa-set-radios" };
+  const _hoisted_28 = { class: "fqa-set-radio" };
+  const _hoisted_29 = { class: "fqa-set-radio" };
+  const _hoisted_30 = { class: "fqa-set-row fqa-set-row-col" };
   const _hoisted_31 = {
     class: "fqa-set-row",
     style: { "padding-top": "0", "border-bottom": "none" }
   };
-  const _hoisted_32 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_33 = { class: "fqa-set-field" };
-  const _hoisted_34 = { class: "fqa-set-field" };
+  const _hoisted_32 = {
+    class: "fqa-set-row",
+    style: { "padding-top": "0", "border-bottom": "none" }
+  };
+  const _hoisted_33 = {
+    class: "fqa-set-row",
+    style: { "padding-top": "0", "border-bottom": "none" }
+  };
+  const _hoisted_34 = { class: "fqa-set-row fqa-set-row-col" };
   const _hoisted_35 = { class: "fqa-set-field" };
-  const _hoisted_36 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_37 = { class: "fqa-set-radios" };
-  const _hoisted_38 = { class: "fqa-set-radio" };
-  const _hoisted_39 = { class: "fqa-set-radio" };
-  const _hoisted_40 = { class: "fqa-set-row" };
-  const _hoisted_41 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_42 = { class: "fqa-set-radios" };
-  const _hoisted_43 = { class: "fqa-set-radio" };
-  const _hoisted_44 = { class: "fqa-set-radio" };
-  const _hoisted_45 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_46 = { class: "fqa-set-field" };
-  const _hoisted_47 = ["placeholder"];
+  const _hoisted_36 = { class: "fqa-set-field" };
+  const _hoisted_37 = { class: "fqa-set-field" };
+  const _hoisted_38 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_39 = { class: "fqa-set-radios" };
+  const _hoisted_40 = { class: "fqa-set-radio" };
+  const _hoisted_41 = { class: "fqa-set-radio" };
+  const _hoisted_42 = { class: "fqa-set-row" };
+  const _hoisted_43 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_44 = { class: "fqa-set-radios" };
+  const _hoisted_45 = { class: "fqa-set-radio" };
+  const _hoisted_46 = { class: "fqa-set-radio" };
+  const _hoisted_47 = { class: "fqa-set-row fqa-set-row-col" };
   const _hoisted_48 = { class: "fqa-set-field" };
   const _hoisted_49 = ["placeholder"];
   const _hoisted_50 = { class: "fqa-set-field" };
   const _hoisted_51 = ["placeholder"];
-  const _hoisted_52 = { class: "fqa-set-actions" };
-  const _hoisted_53 = ["disabled"];
-  const _hoisted_54 = {
+  const _hoisted_52 = { class: "fqa-set-field" };
+  const _hoisted_53 = ["placeholder"];
+  const _hoisted_54 = { class: "fqa-set-actions" };
+  const _hoisted_55 = ["disabled"];
+  const _hoisted_56 = {
     key: 0,
     class: "fqa-set-note"
   };
-  const _hoisted_55 = { class: "fqa-set-note" };
-  const _hoisted_56 = { class: "fqa-set-links" };
-  const _hoisted_57 = { class: "fqa-set-link-row" };
-  const _hoisted_58 = ["href"];
+  const _hoisted_57 = { class: "fqa-set-note" };
+  const _hoisted_58 = { class: "fqa-set-links" };
+  const _hoisted_59 = { class: "fqa-set-link-row" };
+  const _hoisted_60 = ["href"];
   const GREASYFORK = "https://greasyfork.org/zh-CN/scripts/589115-%E7%95%AA%E8%8C%84%E5%B0%8F%E8%AF%B4%E5%8A%A9%E6%89%8B";
   const GITHUB = "https://github.com/naiyQAQ/fanqie-assistant";
   const _sfc_main$9 = /* @__PURE__ */ vue.defineComponent({
@@ -5515,7 +5981,7 @@
               onClick: close2
             }, "✕"),
             vue.createElementVNode("nav", _hoisted_2$9, [
-              _cache[29] || (_cache[29] = vue.createElementVNode("div", { class: "fqa-set-side-title" }, "助手设置", -1)),
+              _cache[31] || (_cache[31] = vue.createElementVNode("div", { class: "fqa-set-side-title" }, "助手设置", -1)),
               (vue.openBlock(), vue.createElementBlock(vue.Fragment, null, vue.renderList(SECTIONS, (s) => {
                 return vue.createElementVNode("div", {
                   key: s.key,
@@ -5529,9 +5995,9 @@
             ]),
             vue.createElementVNode("section", _hoisted_4$8, [
               active.value === "general" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 0 }, [
-                _cache[33] || (_cache[33] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "常规", -1)),
+                _cache[37] || (_cache[37] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "常规", -1)),
                 vue.createElementVNode("label", _hoisted_5$8, [
-                  _cache[30] || (_cache[30] = vue.createElementVNode("span", { class: "fqa-set-label" }, "解密网页端混淆字体", -1)),
+                  _cache[32] || (_cache[32] = vue.createElementVNode("span", { class: "fqa-set-label" }, "解密网页端混淆字体", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => vue.unref(settings$1).decryptFont = $event),
                     type: "checkbox",
@@ -5541,7 +6007,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_6$8, [
-                  _cache[31] || (_cache[31] = vue.createElementVNode("span", { class: "fqa-set-label" }, "拦截网页事件上报", -1)),
+                  _cache[33] || (_cache[33] = vue.createElementVNode("span", { class: "fqa-set-label" }, "拦截网页事件上报", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => vue.unref(settings$1).blockReport = $event),
                     type: "checkbox",
@@ -5551,7 +6017,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_7$6, [
-                  _cache[32] || (_cache[32] = vue.createElementVNode("span", { class: "fqa-set-label" }, "允许阅读器复制文本", -1)),
+                  _cache[34] || (_cache[34] = vue.createElementVNode("span", { class: "fqa-set-label" }, "允许阅读器复制文本", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => vue.unref(settings$1).allowCopy = $event),
                     type: "checkbox",
@@ -5559,199 +6025,219 @@
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).allowCopy]
                   ])
+                ]),
+                vue.createElementVNode("label", _hoisted_8$6, [
+                  _cache[35] || (_cache[35] = vue.createElementVNode("span", { class: "fqa-set-label" }, "移出书架时二次确认", -1)),
+                  vue.withDirectives(vue.createElementVNode("input", {
+                    "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => vue.unref(settings$1).shelfRemoveConfirm = $event),
+                    type: "checkbox",
+                    class: "fqa-set-switch"
+                  }, null, 512), [
+                    [vue.vModelCheckbox, vue.unref(settings$1).shelfRemoveConfirm]
+                  ])
+                ]),
+                vue.createElementVNode("label", _hoisted_9$6, [
+                  _cache[36] || (_cache[36] = vue.createElementVNode("span", { class: "fqa-set-label" }, "退出登录时二次确认", -1)),
+                  vue.withDirectives(vue.createElementVNode("input", {
+                    "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => vue.unref(settings$1).logoutConfirm = $event),
+                    type: "checkbox",
+                    class: "fqa-set-switch"
+                  }, null, 512), [
+                    [vue.vModelCheckbox, vue.unref(settings$1).logoutConfirm]
+                  ])
                 ])
               ], 64)) : active.value === "ui" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 1 }, [
-                _cache[42] || (_cache[42] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "界面", -1)),
-                vue.createElementVNode("div", _hoisted_8$6, [
-                  _cache[34] || (_cache[34] = vue.createElementVNode("span", { class: "fqa-set-label" }, "阅读器字体", -1)),
+                _cache[46] || (_cache[46] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "界面", -1)),
+                vue.createElementVNode("div", _hoisted_10$6, [
+                  _cache[38] || (_cache[38] = vue.createElementVNode("span", { class: "fqa-set-label" }, "阅读器字体", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => vue.unref(settings$1).readerFont = $event),
+                    "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => vue.unref(settings$1).readerFont = $event),
                     class: "fqa-set-input",
                     type: "text",
                     placeholder: "留空表示使用默认字体"
                   }, null, 512), [
                     [vue.vModelText, vue.unref(settings$1).readerFont]
                   ]),
-                  _cache[35] || (_cache[35] = vue.createElementVNode("p", { class: "fqa-set-note" }, "填写字体名称，例如「思源宋体」。留空则跟随网页默认。", -1))
+                  _cache[39] || (_cache[39] = vue.createElementVNode("p", { class: "fqa-set-note" }, "填写字体名称，例如「思源宋体」。留空则跟随网页默认。", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_9$6, [
-                  _cache[36] || (_cache[36] = vue.createElementVNode("span", { class: "fqa-set-label" }, "自定义 CSS", -1)),
+                vue.createElementVNode("div", _hoisted_11$5, [
+                  _cache[40] || (_cache[40] = vue.createElementVNode("span", { class: "fqa-set-label" }, "自定义 CSS", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => vue.unref(settings$1).customCssEnabled = $event),
+                    "onUpdate:modelValue": _cache[6] || (_cache[6] = ($event) => vue.unref(settings$1).customCssEnabled = $event),
                     type: "checkbox",
                     class: "fqa-set-switch"
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).customCssEnabled]
                   ])
                 ]),
-                vue.createElementVNode("div", _hoisted_10$6, [
+                vue.createElementVNode("div", _hoisted_12$5, [
                   vue.withDirectives(vue.createElementVNode("textarea", {
-                    "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => vue.unref(settings$1).customCss = $event),
+                    "onUpdate:modelValue": _cache[7] || (_cache[7] = ($event) => vue.unref(settings$1).customCss = $event),
                     class: "fqa-set-textarea",
                     disabled: !vue.unref(settings$1).customCssEnabled,
                     spellcheck: "false",
                     placeholder: "/* 自定义 CSS */"
-                  }, null, 8, _hoisted_11$5), [
+                  }, null, 8, _hoisted_13$4), [
                     [vue.vModelText, vue.unref(settings$1).customCss]
                   ]),
-                  _cache[37] || (_cache[37] = vue.createElementVNode("p", { class: "fqa-set-note" }, "关闭开关后内容会保留，只是不再应用。", -1))
+                  _cache[41] || (_cache[41] = vue.createElementVNode("p", { class: "fqa-set-note" }, "关闭开关后内容会保留，只是不再应用。", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_12$5, [
-                  _cache[40] || (_cache[40] = vue.createElementVNode("span", { class: "fqa-set-label" }, "书架单击书本", -1)),
-                  vue.createElementVNode("div", _hoisted_13$4, [
-                    vue.createElementVNode("label", _hoisted_14$4, [
+                vue.createElementVNode("div", _hoisted_14$4, [
+                  _cache[44] || (_cache[44] = vue.createElementVNode("span", { class: "fqa-set-label" }, "书架单击书本", -1)),
+                  vue.createElementVNode("div", _hoisted_15$2, [
+                    vue.createElementVNode("label", _hoisted_16$1, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[6] || (_cache[6] = ($event) => vue.unref(settings$1).bookshelfClickAction = $event),
+                        "onUpdate:modelValue": _cache[8] || (_cache[8] = ($event) => vue.unref(settings$1).bookshelfClickAction = $event),
                         type: "radio",
                         value: "read"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).bookshelfClickAction]
                       ]),
-                      _cache[38] || (_cache[38] = vue.createElementVNode("span", null, "继续阅读", -1))
+                      _cache[42] || (_cache[42] = vue.createElementVNode("span", null, "继续阅读", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_15$2, [
+                    vue.createElementVNode("label", _hoisted_17$1, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[7] || (_cache[7] = ($event) => vue.unref(settings$1).bookshelfClickAction = $event),
+                        "onUpdate:modelValue": _cache[9] || (_cache[9] = ($event) => vue.unref(settings$1).bookshelfClickAction = $event),
                         type: "radio",
                         value: "detail"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).bookshelfClickAction]
                       ]),
-                      _cache[39] || (_cache[39] = vue.createElementVNode("span", null, "查看详情", -1))
+                      _cache[43] || (_cache[43] = vue.createElementVNode("span", null, "查看详情", -1))
                     ])
                   ]),
-                  _cache[41] || (_cache[41] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 按住 Ctrl 单击去往另一项；中键在新标签页打开，Ctrl+中键同样反向。 选「继续阅读」但这本书还没读过时，会退回详情页。 ", -1))
+                  _cache[45] || (_cache[45] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 按住 Ctrl 单击去往另一项；中键在新标签页打开，Ctrl+中键同样反向。 选「继续阅读」但这本书还没读过时，会退回详情页。 ", -1))
                 ])
               ], 64)) : active.value === "search" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 2 }, [
-                _cache[46] || (_cache[46] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "搜索", -1)),
-                vue.createElementVNode("label", _hoisted_16$1, [
-                  _cache[43] || (_cache[43] = vue.createElementVNode("span", { class: "fqa-set-label" }, "接管搜索界面", -1)),
+                _cache[50] || (_cache[50] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "搜索", -1)),
+                vue.createElementVNode("label", _hoisted_18$1, [
+                  _cache[47] || (_cache[47] = vue.createElementVNode("span", { class: "fqa-set-label" }, "接管搜索界面", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[8] || (_cache[8] = ($event) => vue.unref(settings$1).enhanceSearch = $event),
+                    "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => vue.unref(settings$1).enhanceSearch = $event),
                     type: "checkbox",
                     class: "fqa-set-switch"
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).enhanceSearch]
                   ])
                 ]),
-                vue.createElementVNode("div", _hoisted_17$1, [
-                  vue.createElementVNode("label", _hoisted_18$1, [
-                    _cache[44] || (_cache[44] = vue.createElementVNode("span", { class: "fqa-set-label" }, "个人化推荐", -1)),
+                vue.createElementVNode("div", _hoisted_19$1, [
+                  vue.createElementVNode("label", _hoisted_20, [
+                    _cache[48] || (_cache[48] = vue.createElementVNode("span", { class: "fqa-set-label" }, "个人化推荐", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[9] || (_cache[9] = ($event) => vue.unref(settings$1).searchPersonalized = $event),
+                      "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => vue.unref(settings$1).searchPersonalized = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).searchPersonalized]
                     ])
                   ]),
-                  _cache[45] || (_cache[45] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。 凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。 ", -1))
+                  _cache[49] || (_cache[49] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。 凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。 ", -1))
                 ])
               ], 64)) : active.value === "download" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 3 }, [
-                _cache[67] || (_cache[67] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "下载", -1)),
-                vue.createElementVNode("label", _hoisted_19$1, [
-                  _cache[47] || (_cache[47] = vue.createElementVNode("span", { class: "fqa-set-label" }, "显示下载入口", -1)),
+                _cache[71] || (_cache[71] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "下载", -1)),
+                vue.createElementVNode("label", _hoisted_21, [
+                  _cache[51] || (_cache[51] = vue.createElementVNode("span", { class: "fqa-set-label" }, "显示下载入口", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => vue.unref(settings$1).enableDownload = $event),
+                    "onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => vue.unref(settings$1).enableDownload = $event),
                     type: "checkbox",
                     class: "fqa-set-switch"
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).enableDownload]
                   ])
                 ]),
-                vue.createElementVNode("div", _hoisted_20, [
-                  _cache[50] || (_cache[50] = vue.createElementVNode("span", { class: "fqa-set-label" }, "默认格式", -1)),
-                  vue.createElementVNode("div", _hoisted_21, [
-                    vue.createElementVNode("label", _hoisted_22, [
+                vue.createElementVNode("div", _hoisted_22, [
+                  _cache[54] || (_cache[54] = vue.createElementVNode("span", { class: "fqa-set-label" }, "默认格式", -1)),
+                  vue.createElementVNode("div", _hoisted_23, [
+                    vue.createElementVNode("label", _hoisted_24, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => vue.unref(settings$1).downloadFormat = $event),
+                        "onUpdate:modelValue": _cache[13] || (_cache[13] = ($event) => vue.unref(settings$1).downloadFormat = $event),
                         type: "radio",
                         value: "epub"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadFormat]
                       ]),
-                      _cache[48] || (_cache[48] = vue.createElementVNode("span", null, "EPUB", -1))
+                      _cache[52] || (_cache[52] = vue.createElementVNode("span", null, "EPUB", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_23, [
+                    vue.createElementVNode("label", _hoisted_25, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => vue.unref(settings$1).downloadFormat = $event),
+                        "onUpdate:modelValue": _cache[14] || (_cache[14] = ($event) => vue.unref(settings$1).downloadFormat = $event),
                         type: "radio",
                         value: "txt"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadFormat]
                       ]),
-                      _cache[49] || (_cache[49] = vue.createElementVNode("span", null, "TXT", -1))
+                      _cache[53] || (_cache[53] = vue.createElementVNode("span", null, "TXT", -1))
                     ])
                   ]),
-                  _cache[51] || (_cache[51] = vue.createElementVNode("p", { class: "fqa-set-note" }, " EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。 ", -1))
+                  _cache[55] || (_cache[55] = vue.createElementVNode("p", { class: "fqa-set-note" }, " EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。 ", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_24, [
-                  _cache[54] || (_cache[54] = vue.createElementVNode("span", { class: "fqa-set-label" }, "TXT 编码", -1)),
-                  vue.createElementVNode("div", _hoisted_25, [
-                    vue.createElementVNode("label", _hoisted_26, [
+                vue.createElementVNode("div", _hoisted_26, [
+                  _cache[58] || (_cache[58] = vue.createElementVNode("span", { class: "fqa-set-label" }, "TXT 编码", -1)),
+                  vue.createElementVNode("div", _hoisted_27, [
+                    vue.createElementVNode("label", _hoisted_28, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[13] || (_cache[13] = ($event) => vue.unref(settings$1).downloadCharset = $event),
+                        "onUpdate:modelValue": _cache[15] || (_cache[15] = ($event) => vue.unref(settings$1).downloadCharset = $event),
                         type: "radio",
                         value: "utf-8"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadCharset]
                       ]),
-                      _cache[52] || (_cache[52] = vue.createElementVNode("span", null, "UTF-8", -1))
+                      _cache[56] || (_cache[56] = vue.createElementVNode("span", null, "UTF-8", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_27, [
+                    vue.createElementVNode("label", _hoisted_29, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[14] || (_cache[14] = ($event) => vue.unref(settings$1).downloadCharset = $event),
+                        "onUpdate:modelValue": _cache[16] || (_cache[16] = ($event) => vue.unref(settings$1).downloadCharset = $event),
                         type: "radio",
                         value: "gbk"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadCharset]
                       ]),
-                      _cache[53] || (_cache[53] = vue.createElementVNode("span", null, "GBK", -1))
+                      _cache[57] || (_cache[57] = vue.createElementVNode("span", null, "GBK", -1))
                     ])
                   ]),
-                  _cache[55] || (_cache[55] = vue.createElementVNode("p", { class: "fqa-set-note" }, "EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。", -1))
+                  _cache[59] || (_cache[59] = vue.createElementVNode("p", { class: "fqa-set-note" }, "EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_28, [
-                  _cache[59] || (_cache[59] = vue.createElementVNode("span", { class: "fqa-set-label" }, "EPUB 选项", -1)),
-                  vue.createElementVNode("label", _hoisted_29, [
-                    _cache[56] || (_cache[56] = vue.createElementVNode("span", { class: "fqa-set-label" }, "下载正文插图", -1)),
+                vue.createElementVNode("div", _hoisted_30, [
+                  _cache[63] || (_cache[63] = vue.createElementVNode("span", { class: "fqa-set-label" }, "EPUB 选项", -1)),
+                  vue.createElementVNode("label", _hoisted_31, [
+                    _cache[60] || (_cache[60] = vue.createElementVNode("span", { class: "fqa-set-label" }, "下载正文插图", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[15] || (_cache[15] = ($event) => vue.unref(settings$1).downloadImages = $event),
+                      "onUpdate:modelValue": _cache[17] || (_cache[17] = ($event) => vue.unref(settings$1).downloadImages = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadImages]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_30, [
-                    _cache[57] || (_cache[57] = vue.createElementVNode("span", { class: "fqa-set-label" }, "保留书籍排版样式", -1)),
+                  vue.createElementVNode("label", _hoisted_32, [
+                    _cache[61] || (_cache[61] = vue.createElementVNode("span", { class: "fqa-set-label" }, "保留书籍排版样式", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[16] || (_cache[16] = ($event) => vue.unref(settings$1).downloadBookCss = $event),
+                      "onUpdate:modelValue": _cache[18] || (_cache[18] = ($event) => vue.unref(settings$1).downloadBookCss = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadBookCss]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_31, [
-                    _cache[58] || (_cache[58] = vue.createElementVNode("span", { class: "fqa-set-label" }, "为每卷生成卷页", -1)),
+                  vue.createElementVNode("label", _hoisted_33, [
+                    _cache[62] || (_cache[62] = vue.createElementVNode("span", { class: "fqa-set-label" }, "为每卷生成卷页", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[17] || (_cache[17] = ($event) => vue.unref(settings$1).downloadVolumePage = $event),
+                      "onUpdate:modelValue": _cache[19] || (_cache[19] = ($event) => vue.unref(settings$1).downloadVolumePage = $event),
                       type: "checkbox",
                       class: "fqa-set-switch"
                     }, null, 512), [
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadVolumePage]
                     ])
                   ]),
-                  _cache[60] || (_cache[60] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。 ", -1))
+                  _cache[64] || (_cache[64] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。 ", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_32, [
-                  _cache[64] || (_cache[64] = vue.createElementVNode("span", { class: "fqa-set-label" }, "请求节奏", -1)),
-                  _cache[65] || (_cache[65] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。 ", -1)),
-                  vue.createElementVNode("label", _hoisted_33, [
-                    _cache[61] || (_cache[61] = vue.createElementVNode("span", null, "每批章节数（1-30）", -1)),
+                vue.createElementVNode("div", _hoisted_34, [
+                  _cache[68] || (_cache[68] = vue.createElementVNode("span", { class: "fqa-set-label" }, "请求节奏", -1)),
+                  _cache[69] || (_cache[69] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。 ", -1)),
+                  vue.createElementVNode("label", _hoisted_35, [
+                    _cache[65] || (_cache[65] = vue.createElementVNode("span", null, "每批章节数（1-30）", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[18] || (_cache[18] = ($event) => vue.unref(settings$1).downloadBatchSize = $event),
+                      "onUpdate:modelValue": _cache[20] || (_cache[20] = ($event) => vue.unref(settings$1).downloadBatchSize = $event),
                       class: "fqa-set-input",
                       type: "number",
                       min: "1",
@@ -5765,10 +6251,10 @@
                       ]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_34, [
-                    _cache[62] || (_cache[62] = vue.createElementVNode("span", null, "批次间隔 (ms)", -1)),
+                  vue.createElementVNode("label", _hoisted_36, [
+                    _cache[66] || (_cache[66] = vue.createElementVNode("span", null, "批次间隔 (ms)", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[19] || (_cache[19] = ($event) => vue.unref(settings$1).downloadInterval = $event),
+                      "onUpdate:modelValue": _cache[21] || (_cache[21] = ($event) => vue.unref(settings$1).downloadInterval = $event),
                       class: "fqa-set-input",
                       type: "number",
                       min: "0",
@@ -5783,10 +6269,10 @@
                       ]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_35, [
-                    _cache[63] || (_cache[63] = vue.createElementVNode("span", null, "重试轮数", -1)),
+                  vue.createElementVNode("label", _hoisted_37, [
+                    _cache[67] || (_cache[67] = vue.createElementVNode("span", null, "重试轮数", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[20] || (_cache[20] = ($event) => vue.unref(settings$1).downloadRetries = $event),
+                      "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => vue.unref(settings$1).downloadRetries = $event),
                       class: "fqa-set-input",
                       type: "number",
                       min: "0",
@@ -5800,7 +6286,7 @@
                       ]
                     ])
                   ]),
-                  _cache[66] || (_cache[66] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。 ", -1)),
+                  _cache[70] || (_cache[70] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。 ", -1)),
                   vue.createElementVNode("div", { class: "fqa-set-actions" }, [
                     vue.createElementVNode("button", {
                       class: "fqa-set-btn",
@@ -5809,123 +6295,123 @@
                   ])
                 ])
               ], 64)) : active.value === "audiobook" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 4 }, [
-                _cache[73] || (_cache[73] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "听书", -1)),
-                vue.createElementVNode("div", _hoisted_36, [
-                  _cache[70] || (_cache[70] = vue.createElementVNode("span", { class: "fqa-set-label" }, "读完一章后", -1)),
-                  vue.createElementVNode("div", _hoisted_37, [
-                    vue.createElementVNode("label", _hoisted_38, [
+                _cache[77] || (_cache[77] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "听书", -1)),
+                vue.createElementVNode("div", _hoisted_38, [
+                  _cache[74] || (_cache[74] = vue.createElementVNode("span", { class: "fqa-set-label" }, "读完一章后", -1)),
+                  vue.createElementVNode("div", _hoisted_39, [
+                    vue.createElementVNode("label", _hoisted_40, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[21] || (_cache[21] = ($event) => vue.unref(settings$1).audiobookChapterEnd = $event),
+                        "onUpdate:modelValue": _cache[23] || (_cache[23] = ($event) => vue.unref(settings$1).audiobookChapterEnd = $event),
                         type: "radio",
                         value: "next"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).audiobookChapterEnd]
                       ]),
-                      _cache[68] || (_cache[68] = vue.createElementVNode("span", null, "自动下一章", -1))
+                      _cache[72] || (_cache[72] = vue.createElementVNode("span", null, "自动下一章", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_39, [
+                    vue.createElementVNode("label", _hoisted_41, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => vue.unref(settings$1).audiobookChapterEnd = $event),
+                        "onUpdate:modelValue": _cache[24] || (_cache[24] = ($event) => vue.unref(settings$1).audiobookChapterEnd = $event),
                         type: "radio",
                         value: "stop"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).audiobookChapterEnd]
                       ]),
-                      _cache[69] || (_cache[69] = vue.createElementVNode("span", null, "停止播放", -1))
+                      _cache[73] || (_cache[73] = vue.createElementVNode("span", null, "停止播放", -1))
                     ])
                   ]),
-                  _cache[71] || (_cache[71] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 自动下一章会点击页面上的「下一章」，读到全书最后一章时自动停下。 ", -1))
+                  _cache[75] || (_cache[75] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 自动下一章会点击页面上的「下一章」，读到全书最后一章时自动停下。 ", -1))
                 ]),
-                vue.createElementVNode("label", _hoisted_40, [
-                  _cache[72] || (_cache[72] = vue.createElementVNode("span", { class: "fqa-set-label" }, "高亮并跟随朗读段落", -1)),
+                vue.createElementVNode("label", _hoisted_42, [
+                  _cache[76] || (_cache[76] = vue.createElementVNode("span", { class: "fqa-set-label" }, "高亮并跟随朗读段落", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
-                    "onUpdate:modelValue": _cache[23] || (_cache[23] = ($event) => vue.unref(settings$1).audiobookFollow = $event),
+                    "onUpdate:modelValue": _cache[25] || (_cache[25] = ($event) => vue.unref(settings$1).audiobookFollow = $event),
                     type: "checkbox",
                     class: "fqa-set-switch"
                   }, null, 512), [
                     [vue.vModelCheckbox, vue.unref(settings$1).audiobookFollow]
                   ])
                 ]),
-                _cache[74] || (_cache[74] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 关闭后仍会高亮当前段落，但不再自动滚动页面。点击任意段落可跳到该处朗读。 ", -1))
+                _cache[78] || (_cache[78] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 关闭后仍会高亮当前段落，但不再自动滚动页面。点击任意段落可跳到该处朗读。 ", -1))
               ], 64)) : active.value === "protocol" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 5 }, [
-                _cache[84] || (_cache[84] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "协议", -1)),
-                vue.createElementVNode("div", _hoisted_41, [
-                  _cache[77] || (_cache[77] = vue.createElementVNode("span", { class: "fqa-set-label" }, "API 偏好", -1)),
-                  vue.createElementVNode("div", _hoisted_42, [
-                    vue.createElementVNode("label", _hoisted_43, [
+                _cache[88] || (_cache[88] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "协议", -1)),
+                vue.createElementVNode("div", _hoisted_43, [
+                  _cache[81] || (_cache[81] = vue.createElementVNode("span", { class: "fqa-set-label" }, "API 偏好", -1)),
+                  vue.createElementVNode("div", _hoisted_44, [
+                    vue.createElementVNode("label", _hoisted_45, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[24] || (_cache[24] = ($event) => vue.unref(settings$1).apiPreference = $event),
+                        "onUpdate:modelValue": _cache[26] || (_cache[26] = ($event) => vue.unref(settings$1).apiPreference = $event),
                         type: "radio",
                         value: "app"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).apiPreference]
                       ]),
-                      _cache[75] || (_cache[75] = vue.createElementVNode("span", null, "番茄 APP", -1))
+                      _cache[79] || (_cache[79] = vue.createElementVNode("span", null, "番茄 APP", -1))
                     ]),
-                    vue.createElementVNode("label", _hoisted_44, [
+                    vue.createElementVNode("label", _hoisted_46, [
                       vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[25] || (_cache[25] = ($event) => vue.unref(settings$1).apiPreference = $event),
+                        "onUpdate:modelValue": _cache[27] || (_cache[27] = ($event) => vue.unref(settings$1).apiPreference = $event),
                         type: "radio",
                         value: "redcandle"
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).apiPreference]
                       ]),
-                      _cache[76] || (_cache[76] = vue.createElementVNode("span", null, "红烛 APP", -1))
+                      _cache[80] || (_cache[80] = vue.createElementVNode("span", null, "红烛 APP", -1))
                     ])
                   ]),
-                  _cache[78] || (_cache[78] = vue.createElementVNode("p", { class: "fqa-set-note" }, "如果某协议数据不全，脚本可能会选择其他接口作为补充。", -1))
+                  _cache[82] || (_cache[82] = vue.createElementVNode("p", { class: "fqa-set-note" }, "如果某协议数据不全，脚本可能会选择其他接口作为补充。", -1))
                 ]),
-                vue.createElementVNode("div", _hoisted_45, [
-                  _cache[82] || (_cache[82] = vue.createElementVNode("span", { class: "fqa-set-label" }, "设备信息", -1)),
-                  _cache[83] || (_cache[83] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。 ", -1)),
-                  vue.createElementVNode("label", _hoisted_46, [
-                    _cache[79] || (_cache[79] = vue.createElementVNode("span", null, "device_id", -1)),
+                vue.createElementVNode("div", _hoisted_47, [
+                  _cache[86] || (_cache[86] = vue.createElementVNode("span", { class: "fqa-set-label" }, "设备信息", -1)),
+                  _cache[87] || (_cache[87] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。 ", -1)),
+                  vue.createElementVNode("label", _hoisted_48, [
+                    _cache[83] || (_cache[83] = vue.createElementVNode("span", null, "device_id", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[26] || (_cache[26] = ($event) => vue.unref(settings$1).deviceId = $event),
+                      "onUpdate:modelValue": _cache[28] || (_cache[28] = ($event) => vue.unref(settings$1).deviceId = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.device_id || "自动注册"
-                    }, null, 8, _hoisted_47), [
+                    }, null, 8, _hoisted_49), [
                       [vue.vModelText, vue.unref(settings$1).deviceId]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_48, [
-                    _cache[80] || (_cache[80] = vue.createElementVNode("span", null, "install_id (iid)", -1)),
+                  vue.createElementVNode("label", _hoisted_50, [
+                    _cache[84] || (_cache[84] = vue.createElementVNode("span", null, "install_id (iid)", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[27] || (_cache[27] = ($event) => vue.unref(settings$1).installId = $event),
+                      "onUpdate:modelValue": _cache[29] || (_cache[29] = ($event) => vue.unref(settings$1).installId = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.install_id || "自动注册"
-                    }, null, 8, _hoisted_49), [
+                    }, null, 8, _hoisted_51), [
                       [vue.vModelText, vue.unref(settings$1).installId]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_50, [
-                    _cache[81] || (_cache[81] = vue.createElementVNode("span", null, "device_type", -1)),
+                  vue.createElementVNode("label", _hoisted_52, [
+                    _cache[85] || (_cache[85] = vue.createElementVNode("span", null, "device_type", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[28] || (_cache[28] = ($event) => vue.unref(settings$1).deviceType = $event),
+                      "onUpdate:modelValue": _cache[30] || (_cache[30] = ($event) => vue.unref(settings$1).deviceType = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.device_type || "自动注册"
-                    }, null, 8, _hoisted_51), [
+                    }, null, 8, _hoisted_53), [
                       [vue.vModelText, vue.unref(settings$1).deviceType]
                     ])
                   ]),
-                  vue.createElementVNode("div", _hoisted_52, [
+                  vue.createElementVNode("div", _hoisted_54, [
                     vue.createElementVNode("button", {
                       class: "fqa-set-btn",
                       disabled: registering.value,
                       onClick: reRegister
-                    }, vue.toDisplayString(registering.value ? "注册中…" : "重新注册"), 9, _hoisted_53),
-                    registerMsg.value ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_54, vue.toDisplayString(registerMsg.value), 1)) : vue.createCommentVNode("", true)
+                    }, vue.toDisplayString(registering.value ? "注册中…" : "重新注册"), 9, _hoisted_55),
+                    registerMsg.value ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_56, vue.toDisplayString(registerMsg.value), 1)) : vue.createCommentVNode("", true)
                   ])
                 ])
               ], 64)) : (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 6 }, [
-                _cache[89] || (_cache[89] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "关于", -1)),
-                vue.createElementVNode("p", _hoisted_55, "番茄小说助手 v" + vue.toDisplayString(vue.unref(version)), 1),
-                vue.createElementVNode("div", _hoisted_56, [
+                _cache[93] || (_cache[93] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "关于", -1)),
+                vue.createElementVNode("p", _hoisted_57, "番茄小说助手 v" + vue.toDisplayString(vue.unref(version)), 1),
+                vue.createElementVNode("div", _hoisted_58, [
                   vue.createElementVNode("div", { class: "fqa-set-link-row" }, [
-                    _cache[85] || (_cache[85] = vue.createElementVNode("span", null, "GreasyFork 地址：", -1)),
+                    _cache[89] || (_cache[89] = vue.createElementVNode("span", null, "GreasyFork 地址：", -1)),
                     vue.createElementVNode("a", {
                       href: GREASYFORK,
                       target: "_blank",
@@ -5933,31 +6419,31 @@
                     }, "跳转")
                   ]),
                   vue.createElementVNode("div", { class: "fqa-set-link-row" }, [
-                    _cache[86] || (_cache[86] = vue.createElementVNode("span", null, "GitHub 地址：", -1)),
+                    _cache[90] || (_cache[90] = vue.createElementVNode("span", null, "GitHub 地址：", -1)),
                     vue.createElementVNode("a", {
                       href: GITHUB,
                       target: "_blank",
                       rel: "noreferrer noopener"
                     }, "跳转")
                   ]),
-                  vue.createElementVNode("div", _hoisted_57, [
-                    _cache[88] || (_cache[88] = vue.createElementVNode("span", null, "问题反馈：", -1)),
+                  vue.createElementVNode("div", _hoisted_59, [
+                    _cache[92] || (_cache[92] = vue.createElementVNode("span", null, "问题反馈：", -1)),
                     vue.createElementVNode("a", {
                       href: FEEDBACK,
                       target: "_blank",
                       rel: "noreferrer noopener"
                     }, "GreasyFork"),
                     vue.createElementVNode("span", null, [
-                      _cache[87] || (_cache[87] = vue.createTextVNode(" 或 ", -1)),
+                      _cache[91] || (_cache[91] = vue.createTextVNode(" 或 ", -1)),
                       vue.createElementVNode("a", {
                         href: `${GITHUB}/issues`,
                         target: "_blank",
                         rel: "noreferrer noopener"
-                      }, " GitHub Issues ", 8, _hoisted_58)
+                      }, " GitHub Issues ", 8, _hoisted_60)
                     ])
                   ])
                 ]),
-                _cache[90] || (_cache[90] = vue.createElementVNode("div", { class: "fqa-set-license" }, [
+                _cache[94] || (_cache[94] = vue.createElementVNode("div", { class: "fqa-set-license" }, [
                   vue.createElementVNode("p", null, " 本脚本基于 GNU General Public License 3.0 授权，完全开源且免费，修改/二次开发请注意遵守开源协议。 "),
                   vue.createElementVNode("p", null, "本脚本使用 TypeScript + Vue 开发，请避免直接修改编译产物。")
                 ], -1))
@@ -6058,6 +6544,20 @@
       });
       secondDiv.insertAdjacentElement("afterend", thirdDiv);
       menuInner.appendChild(createMenuItem("助手设置", settings, openSettings));
+      menuInner.childNodes.forEach((node) => {
+        var _a, _b;
+        if (((_b = (_a = node.lastChild) == null ? void 0 : _a.textContent) == null ? void 0 : _b.trim()) === "退出登录") {
+          const original = node;
+          const replaced = cloneElement(node);
+          original.classList.add("fqa-hide");
+          original.insertAdjacentElement("afterend", replaced);
+          replaced.addEventListener("click", (_) => {
+            if (!settings$1.logoutConfirm || unsafeWindow.confirm("确认退出登录吗?")) {
+              original.click();
+            }
+          });
+        }
+      });
     };
     const scan = (root) => {
       if (root.classList.contains("arco-menu-inner")) {
@@ -6742,134 +7242,6 @@
       };
     }
   });
-  const SHELF_BASE = "https://fanqienovel.com/reading/bookapi/bookshelf";
-  async function getBookshelf() {
-    const responses = await Promise.all([
-      fetch$1(SHELF_BASE + "/info/v:version/?aid=1967&iid=0&version_code=57700&update_version_code=57700"),
-      fetch$1("https://fanqienovel.com/api/reader/book/progress")
-    ]);
-    const response = responses[0];
-    const response2 = responses[1];
-    const data = await response.json();
-    const info = data.data.book_shelf_info;
-    const data_ = await response2.json();
-    const data2 = data_.data;
-    const all_items = info.map((item) => item.book_id);
-    const response3 = await fetch$1("https://fanqienovel.com/api/book/simple/info", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        book_ids: all_items
-      })
-    });
-    const data__ = await response3.json();
-    const data3 = data__.data.bookList;
-    const results = [];
-    for (let i2 of data.data.book_shelf_info) {
-      const progress = data2.find((it) => it.book_id === i2.book_id);
-      const simple = data3.find((it) => it.book_id === i2.book_id);
-      const item = {
-        book_id: i2.book_id,
-        last_operate_time: progress ? progress.read_timestamp : i2.last_operate_time,
-        add_shelf_time: i2.add_shelf_time,
-        group_name: i2.group_name,
-        last_read_timestamp: progress ? progress.read_timestamp : 0,
-        last_read_chapter_id: progress ? progress.item_id : "0",
-        is_publish: (simple == null ? void 0 : simple.genre) === "6"
-      };
-      results.push(item);
-    }
-    return results;
-  }
-  async function multidetail(books) {
-    const response = await fetch$1("https://fanqienovel.com/api/bookshelf/multidetail", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        books: books.map((book) => {
-          return {
-            book_id: book.book_id,
-            item_id: book.last_read_chapter_id
-          };
-        })
-      })
-    });
-    const data = await response.json();
-    const list = data.data.detail_list;
-    const results = [];
-    for (let i2 of list) {
-      const item = {
-        book_id: i2.book_id,
-        summary: i2.abstract,
-        title: i2.book_name,
-        author: i2.author_name,
-        cover_url: i2.thumb_url,
-        current_chapter_title: i2.item_show_title,
-        current_chapter_id: i2.item_id,
-        current_chapter_order: i2.real_chapter_order,
-        total_chapter_count: i2.serial_count,
-        last_chapter_update_time: i2.last_chapter_update_time * 1e3,
-        last_chapter_id: i2.last_chapter_item_id,
-        current_chapter_summary: i2.item_abstract,
-        // last_chapter_title: i.last_chapter_show_title,
-        status: i2.update_stop === "1" ? 4 : i2.creation_status,
-        update_status: i2.update_status
-      };
-      results.push(item);
-    }
-    return results;
-  }
-  function identify(bookId2, modifyTime = 0) {
-    return {
-      asterisked: false,
-      book_id: bookId2,
-      book_type: 0,
-      modify_time: modifyTime
-    };
-  }
-  async function shelfPost(path, body) {
-    const res = await fetch$1(`${SHELF_BASE}${path}/v?aid=1967`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(body)
-    });
-    const json = await res.json().catch(() => null);
-    if (!res.ok || json && json.code !== 0 && json.code !== void 0) {
-      throw new Error(`书架操作失败(${path}): ${(json == null ? void 0 : json.message) ?? res.status}`);
-    }
-    return json;
-  }
-  async function addToBookshelf(bookId2) {
-    await shelfPost("/add", {
-      add_book_source: 0,
-      identify_data: [identify(bookId2)]
-    });
-  }
-  async function removeFromBookshelf(bookId2) {
-    await shelfPost("/delete", {
-      identify_data: [identify(bookId2, Date.now())]
-    });
-  }
-  async function moveToGroup(bookId2, groupName) {
-    await shelfPost("/update", {
-      book_data: [
-        {
-          asterisked: false,
-          book_id: bookId2,
-          book_type: 0,
-          group_name: groupName,
-          has_shown: false,
-          is_pin: false,
-          modify_time: Date.now()
-        }
-      ]
-    });
-  }
   const DETAIL_BATCH_SIZE = 20;
   const PAGE_SIZE = 24;
   const TABS = [
@@ -10191,8 +10563,8 @@ ${body}
     }
   ];
   const hooks = [
-    ..._exports$5,
     ..._exports$4,
+    ..._exports$5,
     ..._exports$3,
     ..._exports$2,
     ..._exports$1,

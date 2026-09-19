@@ -77,7 +77,7 @@ export async function checkLogin() {
         desc: j?.data?.desc,
         age: j?.data?.age,
     }
-    if (j?.data?.id > 1) {
+    if (j.code !== -1) {
         userState.isLogin = true
         userState.userInfo = _userInfo
         write('userState', userState)

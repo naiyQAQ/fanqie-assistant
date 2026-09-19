@@ -17,9 +17,12 @@
 	color: var(--fqa-audio-text);
 }
 
-/* 页面切到夜间模式时整体反色 */
-.muye-reader-dark .fqa-audio-root,
-.fqa-audio-root.fqa-audio-dark {
+/*
+ * 暗色反色。悬浮栏挂在 body 下，够不到 .muye-reader-dark 的后代选择器，
+ * 所以 audioPanel 在 #fqa-audio-root 容器上打 .fqa-audio-dark 类；
+ * 真正的 .fqa-audio-root（Vue 根）是容器的子节点，用后代选择器作用到它。
+ */
+.fqa-audio-dark .fqa-audio-root {
 	--fqa-audio-bg: #2b2b2b;
 	--fqa-audio-text: #b3b3b3;
 	--fqa-audio-sub: #7a7a7a;

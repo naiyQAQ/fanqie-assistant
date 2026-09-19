@@ -148,3 +148,9 @@ export async function moveToGroup(bookId: string, groupName: string): Promise<vo
         ],
     })
 }
+
+export async function isInBookshelf(book_id: string): Promise<boolean>  {
+    const response = await fetch(`https://fanqienovel.com/reading/bookapi/bookshelf/check/v:version/?aid=1967&iid=0&version_code=57700&update_version_code=57700&book_id=${book_id}`)
+    const data = await response.json()
+    return Boolean(data.data)
+}

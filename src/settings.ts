@@ -26,6 +26,10 @@ export interface Settings {
     blockReport: boolean
     /** 允许阅读器复制文本 */
     allowCopy: boolean
+    /** 阅读页移出书架前弹确认框 */
+    shelfRemoveConfirm: boolean
+    /** 退出登录前弹确认框 */
+    logoutConfirm: boolean
 
     /* --- 界面 --- */
     /** 阅读器字体，空字符串表示跟随页面默认 */
@@ -84,6 +88,8 @@ export const DEFAULT_SETTINGS: Settings = {
     decryptFont: true,
     blockReport: true,
     allowCopy: true,
+    shelfRemoveConfirm: true,
+    logoutConfirm: true,
 
     readerFont: '',
     customCssEnabled: false,

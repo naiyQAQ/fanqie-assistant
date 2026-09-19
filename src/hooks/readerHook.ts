@@ -5,11 +5,14 @@ import { applyBookCss } from '../api/bookcss'
 import { processFootnotes, bindFootnoteInteraction } from '../utils/footnote'
 import { settings } from '../settings'
 // import defaultcss from '../assets/default.css?raw';
-import { cloneElement } from '../utils';
+import { cloneElement, sleep } from '../utils';
 import { fetchArrayBuffer } from '../utils/request';
 import { type Book } from '../types'
 import { decryptComicImage } from '../crypto/content';
 import { initAudioPanel } from '../audioPanel'
+import { addToBookshelf, removeFromBookshelf, isInBookshelf } from '../api/bookshelf'
+import { addResponseModifier } from './fetchHook'
+import { userState } from '../api/user'
 import {
     closeAudiobook,
     openAudiobook,
@@ -23,11 +26,76 @@ let currentBook: Book | null = null
 
 let latestItemId: string | null = null
 
+let currentChapterWithContent: any = null
+
 /** 脚本接管的正文容器 id。文字章与漫画章共用同一个，切章时复用 */
 const SCRIPT_CONTAINER_ID = 'fqa-reader-content'
 
 /** 漫画懒加载观察器，切章时要换掉旧的 */
 let comicObserver: IntersectionObserver | null = null
+
+/*
+content-length
+39
+content-type
+application/json; charset=utf-8
+date
+Wed, 16 Sep 2026 08:58:41 GMT
+server
+volc-dcdn
+server-timing
+inner; dur=49, cdn-cache;desc=MISS, origin;dur=63, edge;dur=14, cdn-cache;desc=MISS, tt_agw; dur=45
+strict-transport-security
+max-age=63072000; includeSubDomains; preload
+tt-idc-switch
+10000@20260825024420
+tt_stable
+1
+via
+n172-005-142.sjzmp-agg.Creative,n173-115-143.nxzhongwei-mp01-cu.Creative
+x-agw-info
+tZz4wrQl57dt0wY2pTAgR2f48x1mv_TN71v9oOmqjxWS7rul6BjF9t8eZSMnCnTsdvrqH1P6-ELR41Ql_zMwMP_kZavRq2UkjiwjSI7ptI8EHk6qozYlJnJbaqiDWW2sO1RAbsmbFxPsUzXSsp3aUmh7JEMxEBn9_MgD_N49ZXPnqH1EJbjVod0JRshPQPmIzfsU_1PzITtNH20Wb96wrScoWjk=
+x-dsa-origin-status
+200
+x-dsa-trace-id
+17895491212d5366f9d0c2c959ffbc745c0148e43f
+x-request-ip
+2408:847a:718:cd2:20ed:81:8e36:a911
+x-tt-agw-login
+1
+x-tt-logid
+20260916165841775622D9BB198F0EF9C9
+x-tt-trace-host
+014917046478eae01e5ce9f4b5991634e2c2ac3d6c4ea331b6945fee3151af03e55859798c9e8c898e5508e08f78fb380fa48cd479a7ff5f96a2ef74435c7f420dcf4eb744b2aaca36db660c94c334414c30ce2bd99c166030189372edcc8a00b77f30aabb4f0447fece571b3a3c22a3de373bf420de4c924468d754783af3d783
+x-tt-trace-id
+00-260916165841775622D9BB198F0EF9C9-3157EADB1F76429E-00
+x-tt-trace-tag
+id=5
+*/
+
+// 确保脚本clone的书架按钮是干净不受账号状态影响的
+// 没登录不会请求这个api，所以不影响
+addResponseModifier({
+    matcher: (url: string) =>
+        url.indexOf('/reading/bookapi/bookshelf/check/') !== -1
+        && location.pathname.startsWith('/reader'),
+    should_break: () => true,
+    make_response: () => {
+        const body = JSON.stringify({
+            code: 0,
+            message: 'SUCCESS',
+            data: 0
+        })
+        return {
+            responseBody: body,
+            statusCode: 200,
+            responseHeaders: {
+                'content-type': 'application/json; charset=utf-8',
+                'content-length': String(new TextEncoder().encode(body).length)
+            }
+        }
+    },
+})
 
 /**
  * 取到脚本容器：没有就克隆一个插到原容器前面，有就复用并清空。
@@ -75,6 +143,7 @@ async function insertContent() {
         return
     }
     console.log('Chapter:', chapter)
+    currentChapterWithContent = chapter
 
     const pageState: any = (unsafeWindow as typeof unsafeWindow & {
         __INITIAL_STATE__?: { reader?: { chapterData?: { title?: string } } }
@@ -292,7 +361,9 @@ async function insertContent() {
             }
             // 写入更精确的更新时间
             let updateTimeSpans = muyeReaderSubtitle?.querySelectorAll('span.desc-item') || []
-            if (updateTimeSpans.length >= 2 /* 应该是始终为3 */) {
+            console.log('spans len', updateTimeSpans.length, 'assertIsOffshelf', updateTimeSpans.length < 3)
+            if (updateTimeSpans.length >= 3 /* 应该是始终为3 */) {
+                console.log('if')
                 /* 最后一个一般是更新时间 */
                 let updateTimeSpan = updateTimeSpans[updateTimeSpans.length - 1] as HTMLSpanElement
                 let uttspan = updateTimeSpan.firstChild as HTMLSpanElement
@@ -303,11 +374,31 @@ async function insertContent() {
                     '更新时间：' +
                     currentChapterItem.update_time
             } else {
+                console.log('else')
                 // 网页端屏蔽章节。只有一个本章字数 + 前面插入的卷名
-                let updateTimeSpan = document.createElement('span')
+                // 有个默认显示的 0 字，给它删了
+                updateTimeSpans[updateTimeSpans.length - 1]?.remove()
+                const updateTimeSpan = document.createElement('span')
                 // let updateTimeSubSpan = document.createElement('span')
                 updateTimeSpan.className = 'desc-item'
                 updateTimeSpan.textContent = `更新时间：${currentChapterItem.update_time}`
+                console.log('assert equal', currentChapterItem.item_id === currentChapterWithContent?.novel_data?.item_id)
+                console.log('wordcnt', currentChapterWithContent?.novel_data?.chapter_word_number)
+                const c = document.getElementById('fqa-current-chapter-volume')
+                let b: HTMLSpanElement | null = null;
+                if (currentChapterItem.item_id === currentChapterWithContent?.novel_data?.item_id) {
+                    const wordCntSpan = document.createElement('span')
+                    wordCntSpan.className = 'desc-item'
+                    wordCntSpan.textContent = `本章字数：${currentChapterWithContent?.novel_data?.chapter_word_number}字`
+                    console.log(wordCntSpan)
+                    if (c) {
+                        console.log('insert wordcnt')
+                        c.insertAdjacentElement('afterend', wordCntSpan)
+                    }
+                    b = wordCntSpan
+                }
+                console.log('insert update time');
+                (b || c)?.insertAdjacentElement('afterend', updateTimeSpan)
             }
         }
     }
@@ -352,6 +443,14 @@ async function onHashChange(_previous?: string): Promise<void> {
     // TODO: 支持从hash里解析并跳转到指定行
 }
 async function onLoad(): Promise<void> {
+    async function fetchBookInfo(): Promise<void> {
+        const pageState: any = (unsafeWindow as typeof unsafeWindow & {
+            __INITIAL_STATE__?: { reader?: { chapterData?: { title?: string } } }
+        }).__INITIAL_STATE__
+        const bid = pageState?.reader?.chapterData?.bookId
+        currentBook = await getBookInfoAndCatalog(bid)
+    }
+    void fetchBookInfo() // 后台继续执行
     /*
     if (!document.getElementById('fqa-inject-css-reader')) {
         const style = document.createElement('style')
@@ -381,6 +480,54 @@ async function onLoad(): Promise<void> {
         }
         c.addEventListener('click', () => void startAudioPlay())
         toolbar.appendChild(c)
+    }
+    const bookshelfButton = document.querySelector("div.reader-toolbar-item") // 第一个按钮一定是书架状态
+    // 没登录的话就走网页原线路，会要求登录
+    if (userState.isLogin && bookshelfButton && bookshelfButton.innerHTML.includes('书架')) {
+        const shelf = cloneElement(bookshelfButton)
+        bookshelfButton.replaceWith(shelf)
+
+        let inShelf = false
+        let ready = false
+        let busy = false
+
+        async function ensureBookshelfState(): Promise<void> {
+            while (!currentBook) {
+                // 等 fetchBookInfo 飞回来
+                await sleep(50)
+            }
+            inShelf = await isInBookshelf(currentBook.book_id)
+            shelf.classList.toggle('reader-toolbar-item-disabled', inShelf)
+            const label = shelf.lastChild
+            if (label) label.textContent = inShelf ? '已在书架' : '加入书架'
+            ready = true
+        }
+        void ensureBookshelfState()
+
+        shelf.addEventListener('click', async () => {
+            const book = currentBook
+            // 状态还没同步好 / 书籍信息还没到，先不响应
+            if (!ready || busy || !book) return
+            busy = true
+            try {
+                if (inShelf) {
+                    // 已加书架，按设置决定是否带确认移出书架
+                    if (settings.shelfRemoveConfirm) {
+                        if (!unsafeWindow.confirm(`确定要把《${book.title ?? '这本书'}》从书架移出吗？`)) return
+                    }
+                    await removeFromBookshelf(book.book_id)
+                } else {
+                    // 未加书架，直接加入书架
+                    await addToBookshelf(book.book_id)
+                }
+                await ensureBookshelfState()
+            } catch (error) {
+                console.error('[fqa:reader] 书架操作失败:', error)
+                unsafeWindow.alert(error instanceof Error ? error.message : '书架操作失败')
+            } finally {
+                busy = false
+            }
+        })
     }
     const btns = document.querySelector("div.muye-reader-btns") // single div
     if (btns) {

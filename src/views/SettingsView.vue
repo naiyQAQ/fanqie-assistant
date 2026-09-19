@@ -121,6 +121,16 @@ const GITHUB = 'https://github.com/naiyQAQ/fanqie-assistant'
                         <span class="fqa-set-label">允许阅读器复制文本</span>
                         <input v-model="settings.allowCopy" type="checkbox" class="fqa-set-switch" />
                     </label>
+
+                    <label class="fqa-set-row">
+                        <span class="fqa-set-label">移出书架时二次确认</span>
+                        <input v-model="settings.shelfRemoveConfirm" type="checkbox" class="fqa-set-switch" />
+                    </label>
+                    
+                    <label class="fqa-set-row">
+                        <span class="fqa-set-label">退出登录时二次确认</span>
+                        <input v-model="settings.logoutConfirm" type="checkbox" class="fqa-set-switch" />
+                    </label>
                 </template>
 
                 <!-- 界面 -->

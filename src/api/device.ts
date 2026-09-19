@@ -13,6 +13,20 @@ const REGISTER_URL = 'https://i.snssdk.com/service/2/device_register/?tt_data=a'
 const READING_BASE = 'https://reading.snssdk.com'
 const USER_AGENT = 'com.dragon.read'
 
+/**
+ * 设备协议请求一律不带 Cookie。
+ *
+ * GM_xmlhttpRequest 默认会带上扩展上下文里属于这些域名的 Cookie
+ * （store-region、install_id、ttreq 之类），那是浏览器的痕迹，APP 的 okhttp 不带。
+ * 而且「注册一台新设备」还带着已有的 install_id cookie 本身自相矛盾。
+ * anonymous 让 GM 不发 Cookie —— 这一点在页面里用 fetch/XHR 反而做不到。
+ *
+ * 去不掉的另一些：Sec-Fetch-*、Priority、Accept-Encoding、Accept-Language
+ * 是 Chromium 按请求上下文自己加的禁止头，JS（含扩展）都改不了，
+ * 要完全消除只能让请求离开浏览器（原生客户端或服务端代理）。
+ */
+const APP_REQUEST = { credentials: 'omit' } as const
+
 /** 设备注册结果 */
 export interface RegisteredDevice {
     device_id: string;
@@ -56,6 +70,7 @@ export async function registerDevice(): Promise<RegisteredDevice> {
     )
 
     const res = await apiFetch(REGISTER_URL, {
+        ...APP_REQUEST,
         method: 'POST',
         headers: {
             'User-Agent': 'okhttp/4.10.0',
@@ -107,6 +122,7 @@ export async function activatePremium(device: RegisteredDevice): Promise<string>
     try {
         const headers = await signRequest(url, body)
         const res = await apiFetch(url, {
+            ...APP_REQUEST,
             method: 'POST',
             headers: {
                 ...headers,
@@ -166,6 +182,7 @@ export async function registerKey(device: RegisteredDevice): Promise<KeyInfo> {
     // 签名针对 gzip 之后的字节，与 Go 里 SignedRequest 收到压缩流的行为一致
     const headers = await signRequest(url, gzipped)
     const res = await apiFetch(url, {
+        ...APP_REQUEST,
         method: 'POST',
         headers: {
             ...headers,

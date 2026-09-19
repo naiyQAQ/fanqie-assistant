@@ -14,7 +14,7 @@ export async function getCatalogRaw(bookId: string): Promise<Array<any>> {
     const j: any = response.json()
     const items = j?.data?.item_data_list
     if (j?.code !== 0 || !Array.isArray(items) || items.length === 0) {
-        throw new Error('Empty catalog')
+        return [null, null]
     }
     return [items, items.map((it: any) => String(it.item_id))]
 }
@@ -39,25 +39,29 @@ export async function webCatalog(bookId: string): Promise<Array<any>> {
           "firstPassTime": "1749281928"
         },
     */
-    const volmap: Record<string, Array<any>> = {}
+    const cs: Array<any> = []
     const vname: string[] = d.volumeNameList
     for (let i = 0; i < vname.length; i++) {
         const volumeName = vname[i]
         if (volumeName !== undefined) {
-            volmap[volumeName] = d.chapterListWithVolume[i]
+            // volmap[volumeName] = d.chapterListWithVolume[i]
+            cs.push(...d.chapterListWithVolume[i])
         }
     }
-    return [volmap, allItems]
+    return [cs, allItems]
 }
 
 export async function getCatalog(bookId: string): Promise<CatalogResult> {
     const r = await getCatalogRaw(bookId)
     let catalogRaw = r[0] as any[] // item_data_list
     let allItemIds = r[1] as string[] // all item ids
+    console.log('catalogRaw', catalogRaw, 'allItemIds', allItemIds)
     if (!catalogRaw || !allItemIds) {
         const rw = await webCatalog(bookId)
         catalogRaw = rw[0]
         allItemIds = rw[1]
+        console.log('webCatalog', catalogRaw, 'allItemIds', allItemIds)
+        // console.log('catalogRaw', catalogRaw, 'allItemIds', allItemIds)
     }
     const vmap: Record<string, VolumeItem> = {} // title -> VolumeItem
     const chapters: Array<ChapterItem> = []
