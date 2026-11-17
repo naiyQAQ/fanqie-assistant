@@ -18,7 +18,6 @@ export function mappingCreationStatus(status: string): string {
 
 /**
  * 书籍详情，对应 APP 的 /bookapi/detail/v。
- * 响应字段与红烛接口一致，签名通用。
  */
 export async function getBookInfoRaw(bookId: string): Promise<any> {
     const response = await appGet('/bookapi/detail/v', { book_id: bookId })
@@ -43,6 +42,7 @@ export async function getBookInfo(bookId: string): Promise<Book> {
         // volume_list: bookInfo.volume_list,
         update_time: moment(bookInfo.last_chapter_first_pass_time * 1000).format('YYYY-MM-DD HH:mm:ss'),
         status: mappingCreationStatus(bookInfo.creation_status),
+        word_number: bookInfo.word_number,
         // chapter_count: bookInfo.chapter_count,
     } as Book
 }

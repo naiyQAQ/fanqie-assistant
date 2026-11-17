@@ -3,9 +3,6 @@ import { read, write } from './localStorage'
 
 const STORE_KEY = 'settings'
 
-/** API 偏好 */
-export type ApiPreference = 'app' | 'redcandle'
-
 /** 下载格式 */
 export type DownloadFormat = 'epub' | 'txt'
 
@@ -77,7 +74,6 @@ export interface Settings {
     audiobookFollow: boolean
 
     /* --- 协议 --- */
-    apiPreference: ApiPreference
     /** 用户手动指定的设备信息，留空表示用脚本自动注册的设备 */
     deviceId: string
     installId: string
@@ -116,7 +112,6 @@ export const DEFAULT_SETTINGS: Settings = {
     audiobookChapterEnd: 'next',
     audiobookFollow: true,
 
-    apiPreference: 'app',
     deviceId: '',
     installId: '',
     deviceType: '',
@@ -134,9 +129,6 @@ function normalize(raw: unknown): Settings {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (s as any)[key] = v
         }
-    }
-    if (s.apiPreference !== 'app' && s.apiPreference !== 'redcandle') {
-        s.apiPreference = DEFAULT_SETTINGS.apiPreference
     }
     if (s.downloadFormat !== 'epub' && s.downloadFormat !== 'txt') {
         s.downloadFormat = DEFAULT_SETTINGS.downloadFormat

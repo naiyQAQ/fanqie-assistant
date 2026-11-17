@@ -73,6 +73,7 @@ export async function getCatalog(bookId: string): Promise<CatalogResult> {
             title: item.title,
             // YYYY-MM-DD HH:mm:ss
             update_time: moment((item.first_pass_time || item.firstPassTime) * 1000).format('YYYY-MM-DD HH:mm:ss') as string,
+            first_pass_time: parseInt(item.first_pass_time || item.firstPassTime),
             char_count: item.chapter_word_number || 0,
             volume_title: volumeName,
         } as ChapterItem

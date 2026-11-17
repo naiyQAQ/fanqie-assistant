@@ -1,10 +1,14 @@
 import config, { type KeyInfo } from '../config'
+import apiFetch from '../utils/request'
 import { appGet, appPost } from './app'
 import { b64decode, b64encode } from '../crypto'
 import { read, write } from '../localStorage'
 import { decryptChapter } from '../crypto/content'
 import { encryptKeyinfoBody, decryptKeyinfoResponse } from '../crypto/registerkey'
 import { sleep } from '../utils'
+import type { Book, ChapterItem } from '../types'
+import { mappingCreationStatus } from './book'
+import moment from 'moment'
 
 
 async function refreshKeyinfo(): Promise<void> {
@@ -153,7 +157,7 @@ export async function getChapters(
     const expired = entries.filter(([, item]) =>
         item?.code === 0 || item?.code === undefined
             ? item?.content === 'Invalid' ||
-              (item?.key_version !== undefined && Number(item.key_version) !== localKeyver)
+            (item?.key_version !== undefined && Number(item.key_version) !== localKeyver)
             : false
     )
 
@@ -196,9 +200,56 @@ export async function getChapters(
     return results
 }
 
-export async function getChapterInfo(itemId: string): Promise<unknown> {
-    // use page fetch (includes bytedance security sdk. we reuse it)
-    // same origin
-    const res = await fetch('https://fanqienovel.com/api/reader/full?itemId=' + itemId)
-    return await res.json()
+export async function getChapterInfos(itemIds: string[]): Promise<Array<ChapterItem>> {
+    if (itemIds.length === 0) return []
+    if (itemIds.length > 100) {
+        throw new Error('itemIds length should not greater than 100')
+    }
+    const __ = itemIds.join(',')
+    const bookCache: Record<string, Book> = {}
+    const res = await apiFetch(`https://novel.snssdk.com/api/novel/book/directory/detail/v/?aid=1319&item_ids=${__}`)
+    const raw = res.json() as { data?: any } | null | undefined
+    if (raw && Array.isArray(raw.data)) {
+        const results = []
+        for (const item of raw.data) {
+            const bookId: string = item.book_id
+            let bookOfThisChapter: Book | null = bookCache[bookId] || null
+            if (!bookOfThisChapter) {
+                bookOfThisChapter = {
+                    book_id: bookId,
+                    title: item.book_name,
+                    author: item.author,
+                    cover_url: item.thumb_url,
+                    summary: item.abstract,
+                    status: mappingCreationStatus(item.creation_status),
+                    update_time: moment(parseInt(item.last_publish_time) * 1000).format('YYYY-MM-DD HH:mm:ss'),
+                    word_number: item.word_number,
+                } as Book
+                bookCache[bookId] = bookOfThisChapter
+            }
+            const chapterItem = {
+                item_id: String(item.item_id || item.itemId),
+                title: item.title,
+                // YYYY-MM-DD HH:mm:ss
+                update_time: moment((item.first_pass_time || item.firstPassTime) * 1000).format('YYYY-MM-DD HH:mm:ss'),
+                first_pass_time: parseInt(item.first_pass_time || item.firstPassTime),
+                char_count: item.chapter_word_number || 0,
+                book: bookOfThisChapter,
+                volume_title: item.volume_name,
+            }
+            results.push(chapterItem)
+        }
+        return results
+    } else {
+        throw new Error('result is not an array')
+    }
+}
+
+export async function getChapterInfo(itemId: string): Promise<ChapterItem> {
+    const _ = await getChapterInfos([itemId])
+    if (_.length > 0) {
+        return _[0]!
+    } else {
+        throw new Error('no data')
+    }
 }

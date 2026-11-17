@@ -1,5 +1,5 @@
 import { type HookConfig } from '../config'
-import { getChapter } from '../api/content'
+import { getChapter, getChapterInfo } from '../api/content'
 import { getBookInfoAndCatalog } from '../api/book'
 import { applyBookCss } from '../api/bookcss'
 import { processFootnotes, bindFootnoteInteraction } from '../utils/footnote'
@@ -20,6 +20,8 @@ import {
     state as audioState,
     switchChapter,
 } from '../audiobook/controller'
+import { enrichBookCatalog } from '../api/catalog'
+import { fromNow } from '../utils/time'
 // import moment from 'moment'
 
 let currentBook: Book | null = null
@@ -33,6 +35,124 @@ const SCRIPT_CONTAINER_ID = 'fqa-reader-content'
 
 /** 漫画懒加载观察器，切章时要换掉旧的 */
 let comicObserver: IntersectionObserver | null = null
+
+const CATALOG_SELECTOR = 'div.reader-catalog'
+/** 目录滑入动画结束的标记类 */
+const CATALOG_READY_CLASS = 'muye-slide-right-enter-done'
+
+function getReaderItemId(): string {
+    return window.location.pathname.split('/').pop()?.substring(0, 19) || ''
+}
+
+/** 发布当前页的书籍信息，并补更新已经展开的目录。旧页面的异步响应不再写入。 */
+function setCurrentBook(book: Book, itemId: string): boolean {
+    if (getReaderItemId() !== itemId || !book.book_id) return false
+    currentBook = book
+    const catalog = document.querySelector<HTMLElement>(CATALOG_SELECTOR)
+    if (catalog?.classList.contains(CATALOG_READY_CLASS)) {
+        updateCatalog(catalog, book)
+    }
+    return true
+}
+
+/** 数据未就绪或缺少字段时，保留网页已有内容。 */
+function updateCatalog(el: HTMLElement, book: Book | null): void {
+    if (!book?.book_id) return
+
+    const count = el.querySelector('.reader-catalog-operator-left')
+    if (count && book.chapter_list) {
+        count.textContent = `目录・${book.chapter_list.length}`
+    }
+    const header = el.querySelector('.reader-catalog-header')
+    if (header) {
+        const cover = header.querySelector<HTMLImageElement>('.reader-catalog-header-left > img')
+        if (cover && !cover.src && book.cover_url) cover.src = book.cover_url
+        const name = header.querySelector('.reader-catalog-book-name')
+        if (name) {
+            // 克隆后替换，清掉原页面的点击行为；缺少书名时保留原文和图标。
+            const replacement = cloneElement(name)
+            if (book.title?.trim()) {
+                const icon = replacement.querySelector('svg')
+                replacement.textContent = book.title
+                if (icon) replacement.appendChild(icon)
+            }
+            name.replaceWith(replacement)
+            replacement.addEventListener('click', () => {
+                unsafeWindow.open(`https://fanqienovel.com/page/${book.book_id}`, '_blank')
+            })
+        }
+    }
+    const desc = el.querySelector('.reader-catalog-desc')
+    const lastChapter = book.chapter_list?.[book.chapter_list.length - 1]
+    if (desc && lastChapter) {
+        if (desc.textContent === '・更新') {
+            desc.textContent = fromNow(lastChapter.first_pass_time) + '・更新'
+        }
+        desc.setAttribute('title', `${lastChapter.title}・${lastChapter.update_time}`)
+    }
+    const author = el.querySelector('.reader-catalog-author')
+    if (author && !author.textContent?.trim() && book.author) {
+        author.textContent = book.author
+    }
+}
+
+/**
+ * 目录抽屉就绪时回调一次。
+ *
+ * 位置固定在 div.muye-reader-inner 下，但和用户菜单一样是 React 动态创建的：
+ * 点开「目录」才出现，关掉即卸载，再打开是**另一个节点**。
+ * 所以不能回调一次就收工 —— 每个新节点都要回调一次。
+ *
+ * 就绪的标志是滑入动画结束的 muye-slide-right-enter-done：
+ * 这时元素才真正上屏、量得到尺寸。
+ */
+function watchCatalogReady(onReady: (catalog: HTMLElement) => void): void {
+    /** 已经回调过的节点，用来识别 React 换人 */
+    let handled: HTMLElement | null = null
+    /** 当前正在盯 class 的节点（可能还没就绪） */
+    let watched: HTMLElement | null = null
+    let classObserver: MutationObserver | null = null
+
+    const ready = (el: HTMLElement): void => {
+        if (el === handled) return
+        handled = el
+        onReady(el)
+    }
+
+    const sync = (): void => {
+        // 上次回调过的还在文档里，没换人
+        if (handled?.isConnected) return
+
+        const el = document.querySelector<HTMLElement>(CATALOG_SELECTOR)
+        // 还是同一个节点，交给它自己的 class 观察继续等
+        if (el === watched) return
+
+        classObserver?.disconnect()
+        classObserver = null
+        watched = el
+        if (!el) return
+
+        if (el.classList.contains(CATALOG_READY_CLASS)) {
+            ready(el)
+            return
+        }
+
+        // 只盯这一个节点的 class，比全文档 attributes:true 便宜得多
+        classObserver = new MutationObserver(() => {
+            if (watched?.classList.contains(CATALOG_READY_CLASS)) ready(watched)
+        })
+        classObserver.observe(el, { attributes: true, attributeFilter: ['class'] })
+    }
+
+    // 观察者挂在 documentElement 上，被观察的节点会持有它的引用，不会被回收
+    new MutationObserver(sync).observe(document.documentElement, {
+        childList: true,
+        subtree: true,
+    })
+
+    // 页面可能在脚本跑起来之前就已经建好目录了
+    sync()
+}
 
 /*
 content-length
@@ -332,15 +452,19 @@ async function insertContent() {
     }
     */
     console.log('Current book:', currentBook)
-    if (!currentBook || currentBook == null || currentBook.book_id !== chapter.novel_data?.book_id) {
-        currentBook = await getBookInfoAndCatalog(chapter.novel_data?.book_id)
+    const bookId = chapter.novel_data?.book_id
+    if (bookId && (!currentBook || currentBook.book_id !== bookId)) {
+        const book = await getBookInfoAndCatalog(bookId)
+        if (!setCurrentBook(book, itemId)) return
         console.log('Current book:', currentBook)
     }
+    // 书籍详情请求期间可能已经切章，不能再改新页面的标题和副标题。
+    if (getReaderItemId() !== itemId) return
     if (currentBook && currentBook.chapter_list) {
         const currentChapterItem = currentBook.chapter_list.find(c => c.item_id === itemId)
         if (currentChapterItem) {
             console.log('Current chapter:', currentChapterItem)
-            document.title = currentChapterItem.title + ' - ' + currentBook.title + 
+            document.title = currentChapterItem.title + ' - ' + currentBook.title +
                 ' - 番茄小说'
             // 防止插入多次
             if (document.getElementById('fqa-current-chapter-volume')) {
@@ -444,13 +568,27 @@ async function onHashChange(_previous?: string): Promise<void> {
 }
 async function onLoad(): Promise<void> {
     async function fetchBookInfo(): Promise<void> {
+        const itemId = getReaderItemId()
+        if (!itemId) return
         const pageState: any = (unsafeWindow as typeof unsafeWindow & {
             __INITIAL_STATE__?: { reader?: { chapterData?: { title?: string } } }
         }).__INITIAL_STATE__
-        const bid = pageState?.reader?.chapterData?.bookId
-        currentBook = await getBookInfoAndCatalog(bid)
+        const bookId = pageState?.reader?.chapterData?.bookId
+        if (bookId) {
+            const book = await getBookInfoAndCatalog(bookId)
+            setCurrentBook(book, itemId)
+            return
+        }
+        // 下架章节没有页面 bookId，直接使用章节详情携带的书籍信息。
+        const chapterInfo = await getChapterInfo(itemId)
+        const book = chapterInfo.book
+        if (!book) return
+        await enrichBookCatalog(book)
+        setCurrentBook(book, itemId)
     }
-    void fetchBookInfo() // 后台继续执行
+    void fetchBookInfo().catch((error) => {
+        console.error('[fqa:reader] 书籍信息加载失败:', error)
+    }) // 后台继续执行
     /*
     if (!document.getElementById('fqa-inject-css-reader')) {
         const style = document.createElement('style')
@@ -545,8 +683,14 @@ async function onLoad(): Promise<void> {
 
         }*/
     }
+
+    watchCatalogReady((el) => {
+        console.log('[fqa:reader] 目录出现:', el)
+        updateCatalog(el, currentBook)
+    })
     await insertContent()
 }
+
 
 function readerFilter(path: string, _query: URLSearchParams, _hash: string) {
     return path.startsWith('/reader') || path.startsWith('reader')

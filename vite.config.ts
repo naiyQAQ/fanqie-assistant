@@ -36,7 +36,6 @@ export default defineConfig({
         grant: ['GM_addStyle', 'GM_getValue', 'GM_setValue', 'GM_deleteValue', 'GM_xmlhttpRequest', 'GM_cookie', 'unsafeWindow'],
         connect: [
             'fanqienovel.com', // 主站
-            'jxbhmy.com', // 红烛小说 API
             'snssdk.com', // 字节通用 API(含番茄小说)
             'byteimg.com', // 图床
             'fqnovelpic.com', // 图床

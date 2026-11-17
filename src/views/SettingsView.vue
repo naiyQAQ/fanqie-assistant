@@ -349,21 +349,6 @@ const GITHUB = 'https://github.com/naiyQAQ/fanqie-assistant'
                     <h3 class="fqa-set-h">协议</h3>
 
                     <div class="fqa-set-row fqa-set-row-col">
-                        <span class="fqa-set-label">API 偏好</span>
-                        <div class="fqa-set-radios">
-                            <label class="fqa-set-radio">
-                                <input v-model="settings.apiPreference" type="radio" value="app" />
-                                <span>番茄 APP</span>
-                            </label>
-                            <label class="fqa-set-radio">
-                                <input v-model="settings.apiPreference" type="radio" value="redcandle" />
-                                <span>红烛 APP</span>
-                            </label>
-                        </div>
-                        <p class="fqa-set-note">如果某协议数据不全，脚本可能会选择其他接口作为补充。</p>
-                    </div>
-
-                    <div class="fqa-set-row fqa-set-row-col">
                         <span class="fqa-set-label">设备信息</span>
                         <p class="fqa-set-warn">
                             如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。

@@ -1,7 +1,6 @@
 import apiFetch, { isEmptyResponse } from '../utils/request'
 import { signRequest } from '../crypto/sign'
 import config, { fetch as pageFetch } from '../config'
-import { settings } from '../settings'
 import { replaceDevice, markDeviceHealthy } from './provision'
 
 
@@ -11,7 +10,6 @@ export const appBaseUrl = 'https://reading.snssdk.com/reading'
  * 但书评那套在根路径 /novel/commentapi/*，套上 /reading 会 404。
  */
 export const appRootUrl = 'https://reading.snssdk.com'
-export const redcandleBaseUrl = 'https://api5-sinfonlinec.jxbhmy.com/reading'
 /**
  * 番茄网页站同源挂载的 APP 接口。走页面 fetch 时浏览器会自动带上 Cookie，
  * 其中包括脚本读不到的 HttpOnly sessionid —— 个人化推荐就靠这个。
@@ -67,33 +65,12 @@ export async function webGet(
 }
 
 
-function isUsable(res: any): boolean {
-    if (!res || res.status !== 200) return false
-    try {
-        const j = res.json()
-        return !j || j.code === undefined || j.code === 0
-    } catch {
-        // 包括空响应体（设备被作废），一律当作不可用，交给下一个通道
-        return false
-    }
-}
-
-
 async function requestApp(path: string, query?: Record<string, string>, headers?: Record<string, string>) {
     const url = `${appBaseUrl}${path}?${buildAppQuery(query).toString()}`
     const signed = await signRequest(url)
     return apiFetch(url, {
         method: 'GET',
         headers: { ...signed, 'User-Agent': appUserAgent, ...headers },
-    })
-}
-
-
-async function requestRedcandle(path: string, query?: Record<string, string>, headers?: Record<string, string>) {
-    const url = `${redcandleBaseUrl}${path}?${buildAppQuery(query).toString()}`
-    return apiFetch(url, {
-        method: 'GET',
-        headers: { 'User-Agent': appUserAgent, ...headers },
     })
 }
 
@@ -132,15 +109,6 @@ export async function appGet(
     query?: Record<string, string>,
     headers?: Record<string, string>,
 ): Promise<any> {
-    if (settings.apiPreference === 'redcandle') {
-        try {
-            const res = await requestRedcandle(path, query, headers)
-            if (isUsable(res)) return res
-            console.warn(`[fqa:api] 红烛接口数据不全，回落到番茄 APP: ${path}`)
-        } catch (e) {
-            console.warn(`[fqa:api] 红烛接口请求失败，回落到番茄 APP: ${path}`, e)
-        }
-    }
     return requestAppWithRecovery(path, query, headers)
 }
 

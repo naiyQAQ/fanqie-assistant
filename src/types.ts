@@ -2,8 +2,10 @@ export interface ChapterItem {
     item_id: string;
     title: string;
     update_time: string;
+    first_pass_time: number;
     char_count: number;
     volume_title: string;
+    book?: Book;
 }
 
 export interface VolumeItem {
@@ -21,6 +23,7 @@ export interface Book {
     volume_list?: VolumeItem[]; // 之后可以补，允许为空
     update_time: string;
     status: string;
+    word_number: number;
     all_item_ids?: string[]; // 同理
     // chapter_count: number;
     chapter_list?: ChapterItem[]; // 同理
