@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         番茄小说助手
 // @namespace    https://github.com/naiyQAQ/fanqie-assistant
-// @version      0.0.6
+// @version      0.0.7
 // @author       naiyQAQ
 // @description  番茄小说助手，去广告、去推广、解锁章节、优化体验。
 // @license      GPLv3
@@ -11,7 +11,6 @@
 // @require      https://registry.npmmirror.com/moment/2.30.1/files/min/moment.min.js
 // @require      https://registry.npmmirror.com/jszip/3.10.1/files/dist/jszip.min.js
 // @connect      fanqienovel.com
-// @connect      jxbhmy.com
 // @connect      snssdk.com
 // @connect      byteimg.com
 // @connect      fqnovelpic.com
@@ -156,7 +155,6 @@
     downloadBookCss: true,
     audiobookChapterEnd: "next",
     audiobookFollow: true,
-    apiPreference: "app",
     deviceId: "",
     installId: "",
     deviceType: ""
@@ -171,9 +169,6 @@
       if (typeof DEFAULT_SETTINGS[key] === typeof v) {
         s[key] = v;
       }
-    }
-    if (s.apiPreference !== "app" && s.apiPreference !== "redcandle") {
-      s.apiPreference = DEFAULT_SETTINGS.apiPreference;
     }
     if (s.downloadFormat !== "epub" && s.downloadFormat !== "txt") {
       s.downloadFormat = DEFAULT_SETTINGS.downloadFormat;
@@ -1627,7 +1622,6 @@
     }
   }
   const appBaseUrl = "https://reading.snssdk.com/reading";
-  const redcandleBaseUrl = "https://api5-sinfonlinec.jxbhmy.com/reading";
   const webBaseUrl = "https://fanqienovel.com/reading";
   const appUserAgent = "com.dragon.read";
   function buildAppQuery(extra) {
@@ -1662,28 +1656,12 @@
     }
     return res.json();
   }
-  function isUsable(res) {
-    if (!res || res.status !== 200) return false;
-    try {
-      const j = res.json();
-      return !j || j.code === void 0 || j.code === 0;
-    } catch {
-      return false;
-    }
-  }
   async function requestApp(path, query, headers) {
     const url = `${appBaseUrl}${path}?${buildAppQuery(query).toString()}`;
     const signed = await signRequest(url);
     return apiFetch(url, {
       method: "GET",
       headers: { ...signed, "User-Agent": appUserAgent, ...headers }
-    });
-  }
-  async function requestRedcandle(path, query, headers) {
-    const url = `${redcandleBaseUrl}${path}?${buildAppQuery(query).toString()}`;
-    return apiFetch(url, {
-      method: "GET",
-      headers: { "User-Agent": appUserAgent, ...headers }
     });
   }
   async function requestAppWithRecovery(path, query, headers) {
@@ -1699,15 +1677,6 @@
     return retry;
   }
   async function appGet(path, query, headers) {
-    if (settings$1.apiPreference === "redcandle") {
-      try {
-        const res = await requestRedcandle(path, query, headers);
-        if (isUsable(res)) return res;
-        console.warn(`[fqa:api] 红烛接口数据不全，回落到番茄 APP: ${path}`);
-      } catch (e) {
-        console.warn(`[fqa:api] 红烛接口请求失败，回落到番茄 APP: ${path}`, e);
-      }
-    }
     return requestAppWithRecovery(path, query, headers);
   }
   async function appPost(path, body, query, headers) {
@@ -1837,6 +1806,128 @@
       k,
       data
     );
+  }
+  async function getCatalogRaw(bookId2) {
+    var _a;
+    const response = await appGet("/bookapi/directory/all_items/v", { book_id: bookId2 });
+    const j = response.json();
+    const items = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.item_data_list;
+    if ((j == null ? void 0 : j.code) !== 0 || !Array.isArray(items) || items.length === 0) {
+      return [null, null];
+    }
+    return [items, items.map((it) => String(it.item_id))];
+  }
+  async function webCatalog(bookId2) {
+    const url = `https://fanqienovel.com/api/reader/directory/detail?bookId=${bookId2}`;
+    const response = await apiFetch(url);
+    const rj = response.json();
+    const d = rj.data;
+    const allItems = d.allItemIds;
+    const cs = [];
+    const vname = d.volumeNameList;
+    for (let i2 = 0; i2 < vname.length; i2++) {
+      const volumeName = vname[i2];
+      if (volumeName !== void 0) {
+        cs.push(...d.chapterListWithVolume[i2]);
+      }
+    }
+    return [cs, allItems];
+  }
+  async function getCatalog(bookId2) {
+    const r = await getCatalogRaw(bookId2);
+    let catalogRaw = r[0];
+    let allItemIds = r[1];
+    console.log("catalogRaw", catalogRaw, "allItemIds", allItemIds);
+    if (!catalogRaw || !allItemIds) {
+      const rw = await webCatalog(bookId2);
+      catalogRaw = rw[0];
+      allItemIds = rw[1];
+      console.log("webCatalog", catalogRaw, "allItemIds", allItemIds);
+    }
+    const vmap = {};
+    const chapters = [];
+    catalogRaw.forEach((item) => {
+      const volumeName = item.volume_name ?? "";
+      const chapterItem = {
+        item_id: String(item.item_id || item.itemId),
+        title: item.title,
+        // YYYY-MM-DD HH:mm:ss
+        update_time: moment((item.first_pass_time || item.firstPassTime) * 1e3).format("YYYY-MM-DD HH:mm:ss"),
+        first_pass_time: parseInt(item.first_pass_time || item.firstPassTime),
+        char_count: item.chapter_word_number || 0,
+        volume_title: volumeName
+      };
+      chapters.push(chapterItem);
+      if (!vmap[volumeName]) {
+        vmap[volumeName] = {
+          title: volumeName,
+          book_id: bookId2,
+          chapter_list: []
+        };
+      }
+      vmap[volumeName].chapter_list.push(chapterItem);
+    });
+    return {
+      book_id: bookId2,
+      volume_list: Object.values(vmap),
+      chapter_list: chapters,
+      all_item_ids: allItemIds
+    };
+  }
+  async function enrichBookCatalog(book) {
+    const catalog = await getCatalog(book.book_id);
+    book.volume_list = catalog.volume_list;
+    book.chapter_list = catalog.chapter_list;
+  }
+  function mappingCreationStatus(status) {
+    switch (status) {
+      case "0":
+        return "完结";
+      case "1":
+        return "连载";
+      case "4":
+        return "断更";
+      default:
+        return "未知";
+    }
+  }
+  async function getBookInfoRaw(bookId2) {
+    const response = await appGet("/bookapi/detail/v", { book_id: bookId2 });
+    const j = response.json();
+    console.log("Book Info:", j);
+    return j.data;
+  }
+  async function getBookInfo(bookId2) {
+    const bookInfo = await getBookInfoRaw(bookId2);
+    if (!bookInfo) {
+      throw new Error("Book not found");
+    }
+    return {
+      book_id: bookInfo.book_id,
+      title: bookInfo.book_name || bookInfo.original_book_name,
+      author: bookInfo.author,
+      cover_url: bookInfo.thumb_url,
+      summary: bookInfo.abstract,
+      // volume_list: bookInfo.volume_list,
+      update_time: moment(bookInfo.last_chapter_first_pass_time * 1e3).format("YYYY-MM-DD HH:mm:ss"),
+      status: mappingCreationStatus(bookInfo.creation_status),
+      word_number: bookInfo.word_number
+      // chapter_count: bookInfo.chapter_count,
+    };
+  }
+  async function getBookInfoAndCatalog(book) {
+    if (typeof book !== "string") {
+      book = book.book_id;
+    }
+    const bookInfo = await getBookInfo(book);
+    if (!bookInfo) {
+      throw new Error("Book not found");
+    }
+    const catalog = await getCatalog(bookInfo.book_id);
+    console.log("Catalog:", catalog);
+    bookInfo.volume_list = catalog.volume_list;
+    bookInfo.chapter_list = catalog.chapter_list;
+    return bookInfo;
   }
   async function refreshKeyinfo() {
     var _a, _b, _c;
@@ -1973,120 +2064,57 @@
     }
     return results;
   }
-  async function getCatalogRaw(bookId2) {
-    var _a;
-    const response = await appGet("/bookapi/directory/all_items/v", { book_id: bookId2 });
-    const j = response.json();
-    const items = (_a = j == null ? void 0 : j.data) == null ? void 0 : _a.item_data_list;
-    if ((j == null ? void 0 : j.code) !== 0 || !Array.isArray(items) || items.length === 0) {
-      return [null, null];
+  async function getChapterInfos(itemIds) {
+    if (itemIds.length === 0) return [];
+    if (itemIds.length > 100) {
+      throw new Error("itemIds length should not greater than 100");
     }
-    return [items, items.map((it) => String(it.item_id))];
-  }
-  async function webCatalog(bookId2) {
-    const url = `https://fanqienovel.com/api/reader/directory/detail?bookId=${bookId2}`;
-    const response = await apiFetch(url);
-    const rj = response.json();
-    const d = rj.data;
-    const allItems = d.allItemIds;
-    const cs = [];
-    const vname = d.volumeNameList;
-    for (let i2 = 0; i2 < vname.length; i2++) {
-      const volumeName = vname[i2];
-      if (volumeName !== void 0) {
-        cs.push(...d.chapterListWithVolume[i2]);
-      }
-    }
-    return [cs, allItems];
-  }
-  async function getCatalog(bookId2) {
-    const r = await getCatalogRaw(bookId2);
-    let catalogRaw = r[0];
-    let allItemIds = r[1];
-    console.log("catalogRaw", catalogRaw, "allItemIds", allItemIds);
-    if (!catalogRaw || !allItemIds) {
-      const rw = await webCatalog(bookId2);
-      catalogRaw = rw[0];
-      allItemIds = rw[1];
-      console.log("webCatalog", catalogRaw, "allItemIds", allItemIds);
-    }
-    const vmap = {};
-    const chapters = [];
-    catalogRaw.forEach((item) => {
-      const volumeName = item.volume_name ?? "";
-      const chapterItem = {
-        item_id: String(item.item_id || item.itemId),
-        title: item.title,
-        // YYYY-MM-DD HH:mm:ss
-        update_time: moment((item.first_pass_time || item.firstPassTime) * 1e3).format("YYYY-MM-DD HH:mm:ss"),
-        char_count: item.chapter_word_number || 0,
-        volume_title: volumeName
-      };
-      chapters.push(chapterItem);
-      if (!vmap[volumeName]) {
-        vmap[volumeName] = {
-          title: volumeName,
-          book_id: bookId2,
-          chapter_list: []
+    const __ = itemIds.join(",");
+    const bookCache = {};
+    const res = await apiFetch(`https://novel.snssdk.com/api/novel/book/directory/detail/v/?aid=1319&item_ids=${__}`);
+    const raw = res.json();
+    if (raw && Array.isArray(raw.data)) {
+      const results = [];
+      for (const item of raw.data) {
+        const bookId2 = item.book_id;
+        let bookOfThisChapter = bookCache[bookId2] || null;
+        if (!bookOfThisChapter) {
+          bookOfThisChapter = {
+            book_id: bookId2,
+            title: item.book_name,
+            author: item.author,
+            cover_url: item.thumb_url,
+            summary: item.abstract,
+            status: mappingCreationStatus(item.creation_status),
+            update_time: moment(parseInt(item.last_publish_time) * 1e3).format("YYYY-MM-DD HH:mm:ss"),
+            word_number: item.word_number
+          };
+          bookCache[bookId2] = bookOfThisChapter;
+        }
+        const chapterItem = {
+          item_id: String(item.item_id || item.itemId),
+          title: item.title,
+          // YYYY-MM-DD HH:mm:ss
+          update_time: moment((item.first_pass_time || item.firstPassTime) * 1e3).format("YYYY-MM-DD HH:mm:ss"),
+          first_pass_time: parseInt(item.first_pass_time || item.firstPassTime),
+          char_count: item.chapter_word_number || 0,
+          book: bookOfThisChapter,
+          volume_title: item.volume_name
         };
+        results.push(chapterItem);
       }
-      vmap[volumeName].chapter_list.push(chapterItem);
-    });
-    return {
-      book_id: bookId2,
-      volume_list: Object.values(vmap),
-      chapter_list: chapters,
-      all_item_ids: allItemIds
-    };
-  }
-  function mappingCreationStatus(status) {
-    switch (status) {
-      case "0":
-        return "完结";
-      case "1":
-        return "连载";
-      case "4":
-        return "断更";
-      default:
-        return "未知";
+      return results;
+    } else {
+      throw new Error("result is not an array");
     }
   }
-  async function getBookInfoRaw(bookId2) {
-    const response = await appGet("/bookapi/detail/v", { book_id: bookId2 });
-    const j = response.json();
-    console.log("Book Info:", j);
-    return j.data;
-  }
-  async function getBookInfo(bookId2) {
-    const bookInfo = await getBookInfoRaw(bookId2);
-    if (!bookInfo) {
-      throw new Error("Book not found");
+  async function getChapterInfo(itemId2) {
+    const _ = await getChapterInfos([itemId2]);
+    if (_.length > 0) {
+      return _[0];
+    } else {
+      throw new Error("no data");
     }
-    return {
-      book_id: bookInfo.book_id,
-      title: bookInfo.book_name || bookInfo.original_book_name,
-      author: bookInfo.author,
-      cover_url: bookInfo.thumb_url,
-      summary: bookInfo.abstract,
-      // volume_list: bookInfo.volume_list,
-      update_time: moment(bookInfo.last_chapter_first_pass_time * 1e3).format("YYYY-MM-DD HH:mm:ss"),
-      status: mappingCreationStatus(bookInfo.creation_status)
-      // chapter_count: bookInfo.chapter_count,
-    };
-  }
-  async function getBookInfoAndCatalog(book) {
-    if (typeof book !== "string") {
-      book = book.book_id;
-    }
-    const bookInfo = await getBookInfo(book);
-    if (!bookInfo) {
-      throw new Error("Book not found");
-    }
-    const catalog = await getCatalog(bookInfo.book_id);
-    console.log("Catalog:", catalog);
-    bookInfo.volume_list = catalog.volume_list;
-    bookInfo.chapter_list = catalog.chapter_list;
-    return bookInfo;
   }
   const CDN_PREFIX = "https://p3-novel.byteimg.com/origin/";
   const cssCache = /* @__PURE__ */ new Map();
@@ -5467,11 +5495,124 @@
       console.log("Hello, ", (_a = userState == null ? void 0 : userState.userInfo) == null ? void 0 : _a.username);
     }
   }
+  const SECOND = 1e3;
+  const MINUTE = 60 * SECOND;
+  const HOUR = 60 * MINUTE;
+  const DAY = 24 * HOUR;
+  const MONTH = 30 * DAY;
+  const YEAR = 365 * DAY;
+  function normalizeTimestamp(ts) {
+    if (!ts || ts <= 0) return 0;
+    return ts < 1e12 ? ts * 1e3 : ts;
+  }
+  function fromNow(ts) {
+    const time = normalizeTimestamp(ts);
+    if (!time) return "从未";
+    const diff = Date.now() - time;
+    if (diff < MINUTE) return "刚刚";
+    if (diff < HOUR) return `${Math.floor(diff / MINUTE)}分钟前`;
+    if (diff < DAY) return `${Math.floor(diff / HOUR)}小时前`;
+    if (diff < MONTH) return `${Math.floor(diff / DAY)}天前`;
+    if (diff < YEAR) return `${Math.floor(diff / MONTH)}个月前`;
+    return `${Math.floor(diff / YEAR)}年前`;
+  }
+  function formatDateTime(ts) {
+    const time = normalizeTimestamp(ts);
+    if (!time) return "未知";
+    const d = new Date(time);
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
   let currentBook = null;
   let latestItemId = null;
   let currentChapterWithContent = null;
   const SCRIPT_CONTAINER_ID = "fqa-reader-content";
   let comicObserver = null;
+  const CATALOG_SELECTOR = "div.reader-catalog";
+  const CATALOG_READY_CLASS = "muye-slide-right-enter-done";
+  function getReaderItemId() {
+    var _a;
+    return ((_a = window.location.pathname.split("/").pop()) == null ? void 0 : _a.substring(0, 19)) || "";
+  }
+  function setCurrentBook(book, itemId2) {
+    if (getReaderItemId() !== itemId2 || !book.book_id) return false;
+    currentBook = book;
+    const catalog = document.querySelector(CATALOG_SELECTOR);
+    if (catalog == null ? void 0 : catalog.classList.contains(CATALOG_READY_CLASS)) {
+      updateCatalog(catalog, book);
+    }
+    return true;
+  }
+  function updateCatalog(el, book) {
+    var _a, _b, _c;
+    if (!(book == null ? void 0 : book.book_id)) return;
+    const count = el.querySelector(".reader-catalog-operator-left");
+    if (count && book.chapter_list) {
+      count.textContent = `目录・${book.chapter_list.length}`;
+    }
+    const header = el.querySelector(".reader-catalog-header");
+    if (header) {
+      const cover = header.querySelector(".reader-catalog-header-left > img");
+      if (cover && !cover.src && book.cover_url) cover.src = book.cover_url;
+      const name2 = header.querySelector(".reader-catalog-book-name");
+      if (name2) {
+        const replacement = cloneElement(name2);
+        if ((_a = book.title) == null ? void 0 : _a.trim()) {
+          const icon = replacement.querySelector("svg");
+          replacement.textContent = book.title;
+          if (icon) replacement.appendChild(icon);
+        }
+        name2.replaceWith(replacement);
+        replacement.addEventListener("click", () => {
+          unsafeWindow.open(`https://fanqienovel.com/page/${book.book_id}`, "_blank");
+        });
+      }
+    }
+    const desc = el.querySelector(".reader-catalog-desc");
+    const lastChapter = (_b = book.chapter_list) == null ? void 0 : _b[book.chapter_list.length - 1];
+    if (desc && lastChapter) {
+      if (desc.textContent === "・更新") {
+        desc.textContent = fromNow(lastChapter.first_pass_time) + "・更新";
+      }
+      desc.setAttribute("title", `${lastChapter.title}・${lastChapter.update_time}`);
+    }
+    const author = el.querySelector(".reader-catalog-author");
+    if (author && !((_c = author.textContent) == null ? void 0 : _c.trim()) && book.author) {
+      author.textContent = book.author;
+    }
+  }
+  function watchCatalogReady(onReady) {
+    let handled = null;
+    let watched = null;
+    let classObserver = null;
+    const ready = (el) => {
+      if (el === handled) return;
+      handled = el;
+      onReady(el);
+    };
+    const sync = () => {
+      if (handled == null ? void 0 : handled.isConnected) return;
+      const el = document.querySelector(CATALOG_SELECTOR);
+      if (el === watched) return;
+      classObserver == null ? void 0 : classObserver.disconnect();
+      classObserver = null;
+      watched = el;
+      if (!el) return;
+      if (el.classList.contains(CATALOG_READY_CLASS)) {
+        ready(el);
+        return;
+      }
+      classObserver = new MutationObserver(() => {
+        if (watched == null ? void 0 : watched.classList.contains(CATALOG_READY_CLASS)) ready(watched);
+      });
+      classObserver.observe(el, { attributes: true, attributeFilter: ["class"] });
+    };
+    new MutationObserver(sync).observe(document.documentElement, {
+      childList: true,
+      subtree: true
+    });
+    sync();
+  }
   addResponseModifier({
     matcher: (url) => url.indexOf("/reading/bookapi/bookshelf/check/") !== -1 && location.pathname.startsWith("/reader"),
     should_break: () => true,
@@ -5508,7 +5649,7 @@
     return scriptContainer;
   }
   async function insertContent() {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k, _l, _m, _n, _o;
     const itemId2 = ((_a = window.location.pathname.split("/").pop()) == null ? void 0 : _a.substring(0, 19)) || "";
     if (!itemId2) {
       console.warn("No item_id found in URL");
@@ -5645,10 +5786,13 @@
       muyeReaderTitle.textContent = chapterTitle;
     }
     console.log("Current book:", currentBook);
-    if (!currentBook || currentBook == null || currentBook.book_id !== ((_i = chapter.novel_data) == null ? void 0 : _i.book_id)) {
-      currentBook = await getBookInfoAndCatalog((_j = chapter.novel_data) == null ? void 0 : _j.book_id);
+    const bookId2 = (_i = chapter.novel_data) == null ? void 0 : _i.book_id;
+    if (bookId2 && (!currentBook || currentBook.book_id !== bookId2)) {
+      const book = await getBookInfoAndCatalog(bookId2);
+      if (!setCurrentBook(book, itemId2)) return;
       console.log("Current book:", currentBook);
     }
+    if (getReaderItemId() !== itemId2) return;
     if (currentBook && currentBook.chapter_list) {
       const currentChapterItem = currentBook.chapter_list.find((c) => c.item_id === itemId2);
       if (currentChapterItem) {
@@ -5679,18 +5823,18 @@
           updateTimeSpan.innerHTML = "更新时间：" + currentChapterItem.update_time;
         } else {
           console.log("else");
-          (_k = updateTimeSpans[updateTimeSpans.length - 1]) == null ? void 0 : _k.remove();
+          (_j = updateTimeSpans[updateTimeSpans.length - 1]) == null ? void 0 : _j.remove();
           const updateTimeSpan = document.createElement("span");
           updateTimeSpan.className = "desc-item";
           updateTimeSpan.textContent = `更新时间：${currentChapterItem.update_time}`;
-          console.log("assert equal", currentChapterItem.item_id === ((_l = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _l.item_id));
-          console.log("wordcnt", (_m = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _m.chapter_word_number);
+          console.log("assert equal", currentChapterItem.item_id === ((_k = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _k.item_id));
+          console.log("wordcnt", (_l = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _l.chapter_word_number);
           const c = document.getElementById("fqa-current-chapter-volume");
           let b = null;
-          if (currentChapterItem.item_id === ((_n = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _n.item_id)) {
+          if (currentChapterItem.item_id === ((_m = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _m.item_id)) {
             const wordCntSpan = document.createElement("span");
             wordCntSpan.className = "desc-item";
-            wordCntSpan.textContent = `本章字数：${(_o = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _o.chapter_word_number}字`;
+            wordCntSpan.textContent = `本章字数：${(_n = currentChapterWithContent == null ? void 0 : currentChapterWithContent.novel_data) == null ? void 0 : _n.chapter_word_number}字`;
             console.log(wordCntSpan);
             if (c) {
               console.log("insert wordcnt");
@@ -5699,7 +5843,7 @@
             b = wordCntSpan;
           }
           console.log("insert update time");
-          (_p = b || c) == null ? void 0 : _p.insertAdjacentElement("afterend", updateTimeSpan);
+          (_o = b || c) == null ? void 0 : _o.insertAdjacentElement("afterend", updateTimeSpan);
         }
       }
     }
@@ -5735,11 +5879,24 @@
     var _a;
     async function fetchBookInfo() {
       var _a2, _b;
+      const itemId2 = getReaderItemId();
+      if (!itemId2) return;
       const pageState = unsafeWindow.__INITIAL_STATE__;
-      const bid = (_b = (_a2 = pageState == null ? void 0 : pageState.reader) == null ? void 0 : _a2.chapterData) == null ? void 0 : _b.bookId;
-      currentBook = await getBookInfoAndCatalog(bid);
+      const bookId2 = (_b = (_a2 = pageState == null ? void 0 : pageState.reader) == null ? void 0 : _a2.chapterData) == null ? void 0 : _b.bookId;
+      if (bookId2) {
+        const book2 = await getBookInfoAndCatalog(bookId2);
+        setCurrentBook(book2, itemId2);
+        return;
+      }
+      const chapterInfo = await getChapterInfo(itemId2);
+      const book = chapterInfo.book;
+      if (!book) return;
+      await enrichBookCatalog(book);
+      setCurrentBook(book, itemId2);
     }
-    void fetchBookInfo();
+    void fetchBookInfo().catch((error) => {
+      console.error("[fqa:reader] 书籍信息加载失败:", error);
+    });
     const toolbar = document.querySelector("div.reader-toolbar > div");
     const toolbarButton = document.querySelector("div.reader-toolbar > div > div:nth-child(3)");
     if (toolbarButton && toolbar) {
@@ -5802,6 +5959,10 @@
       });
     }
     document.querySelector("div.muye-reader-btns");
+    watchCatalogReady((el) => {
+      console.log("[fqa:reader] 目录出现:", el);
+      updateCatalog(el, currentBook);
+    });
     await insertContent();
   }
   function readerFilter(path, _query, _hash) {
@@ -5830,7 +5991,7 @@
   const bookshelf = '<svg xmlns="http://www.w3.org/2000/svg"\r\n     width="24"\r\n     height="24"\r\n     viewBox="0 0 24 24"\r\n     fill="none"\r\n     stroke="currentColor"\r\n     stroke-width="1.2"\r\n     stroke-linecap="round"\r\n     stroke-linejoin="round">\r\n  <path d="M3.5 20h17"/>\r\n  <rect x="5" y="7" width="3.5" height="13" rx="0.8"/>\r\n  <rect x="8.5" y="5" width="4" height="15" rx="0.8"/>\r\n  <path d="M15.1 6.2 18 5.5l3.1 13.6-2.9.7z"/>\r\n  <path d="M9.8 8h1.4M6.1 10h1.3M17 8.8l1.3-.3"/>\r\n</svg>';
   const settings = '<?xml version="1.0" encoding="utf-8"?>\r\n<svg width="24px" height="24px" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M12 8.25C9.92894 8.25 8.25 9.92893 8.25 12C8.25 14.0711 9.92894 15.75 12 15.75C14.0711 15.75 15.75 14.0711 15.75 12C15.75 9.92893 14.0711 8.25 12 8.25ZM9.75 12C9.75 10.7574 10.7574 9.75 12 9.75C13.2426 9.75 14.25 10.7574 14.25 12C14.25 13.2426 13.2426 14.25 12 14.25C10.7574 14.25 9.75 13.2426 9.75 12Z"\r\n        fill="currentColor" />\r\n    <path fill-rule="evenodd" clip-rule="evenodd"\r\n        d="M11.9747 1.25C11.5303 1.24999 11.1592 1.24999 10.8546 1.27077C10.5375 1.29241 10.238 1.33905 9.94761 1.45933C9.27379 1.73844 8.73843 2.27379 8.45932 2.94762C8.31402 3.29842 8.27467 3.66812 8.25964 4.06996C8.24756 4.39299 8.08454 4.66251 7.84395 4.80141C7.60337 4.94031 7.28845 4.94673 7.00266 4.79568C6.64714 4.60777 6.30729 4.45699 5.93083 4.40743C5.20773 4.31223 4.47642 4.50819 3.89779 4.95219C3.64843 5.14353 3.45827 5.3796 3.28099 5.6434C3.11068 5.89681 2.92517 6.21815 2.70294 6.60307L2.67769 6.64681C2.45545 7.03172 2.26993 7.35304 2.13562 7.62723C1.99581 7.91267 1.88644 8.19539 1.84541 8.50701C1.75021 9.23012 1.94617 9.96142 2.39016 10.5401C2.62128 10.8412 2.92173 11.0602 3.26217 11.2741C3.53595 11.4461 3.68788 11.7221 3.68786 12C3.68785 12.2778 3.53592 12.5538 3.26217 12.7258C2.92169 12.9397 2.62121 13.1587 2.39007 13.4599C1.94607 14.0385 1.75012 14.7698 1.84531 15.4929C1.88634 15.8045 1.99571 16.0873 2.13552 16.3727C2.26983 16.6469 2.45535 16.9682 2.67758 17.3531L2.70284 17.3969C2.92507 17.7818 3.11058 18.1031 3.28089 18.3565C3.45817 18.6203 3.64833 18.8564 3.89769 19.0477C4.47632 19.4917 5.20763 19.6877 5.93073 19.5925C6.30717 19.5429 6.647 19.3922 7.0025 19.2043C7.28833 19.0532 7.60329 19.0596 7.8439 19.1986C8.08452 19.3375 8.24756 19.607 8.25964 19.9301C8.27467 20.3319 8.31403 20.7016 8.45932 21.0524C8.73843 21.7262 9.27379 22.2616 9.94761 22.5407C10.238 22.661 10.5375 22.7076 10.8546 22.7292C11.1592 22.75 11.5303 22.75 11.9747 22.75H12.0252C12.4697 22.75 12.8407 22.75 13.1454 22.7292C13.4625 22.7076 13.762 22.661 14.0524 22.5407C14.7262 22.2616 15.2616 21.7262 15.5407 21.0524C15.686 20.7016 15.7253 20.3319 15.7403 19.93C15.7524 19.607 15.9154 19.3375 16.156 19.1985C16.3966 19.0596 16.7116 19.0532 16.9974 19.2042C17.3529 19.3921 17.6927 19.5429 18.0692 19.5924C18.7923 19.6876 19.5236 19.4917 20.1022 19.0477C20.3516 18.8563 20.5417 18.6203 20.719 18.3565C20.8893 18.1031 21.0748 17.7818 21.297 17.3969L21.3223 17.3531C21.5445 16.9682 21.7301 16.6468 21.8644 16.3726C22.0042 16.0872 22.1135 15.8045 22.1546 15.4929C22.2498 14.7697 22.0538 14.0384 21.6098 13.4598C21.3787 13.1586 21.0782 12.9397 20.7378 12.7258C20.464 12.5538 20.3121 12.2778 20.3121 11.9999C20.3121 11.7221 20.464 11.4462 20.7377 11.2742C21.0783 11.0603 21.3788 10.8414 21.6099 10.5401C22.0539 9.96149 22.2499 9.23019 22.1547 8.50708C22.1136 8.19546 22.0043 7.91274 21.8645 7.6273C21.7302 7.35313 21.5447 7.03183 21.3224 6.64695L21.2972 6.60318C21.0749 6.21825 20.8894 5.89688 20.7191 5.64347C20.5418 5.37967 20.3517 5.1436 20.1023 4.95225C19.5237 4.50826 18.7924 4.3123 18.0692 4.4075C17.6928 4.45706 17.353 4.60782 16.9975 4.79572C16.7117 4.94679 16.3967 4.94036 16.1561 4.80144C15.9155 4.66253 15.7524 4.39297 15.7403 4.06991C15.7253 3.66808 15.686 3.2984 15.5407 2.94762C15.2616 2.27379 14.7262 1.73844 14.0524 1.45933C13.762 1.33905 13.4625 1.29241 13.1454 1.27077C12.8407 1.24999 12.4697 1.24999 12.0252 1.25H11.9747ZM10.5216 2.84515C10.5988 2.81319 10.716 2.78372 10.9567 2.76729C11.2042 2.75041 11.5238 2.75 12 2.75C12.4762 2.75 12.7958 2.75041 13.0432 2.76729C13.284 2.78372 13.4012 2.81319 13.4783 2.84515C13.7846 2.97202 14.028 3.21536 14.1548 3.52165C14.1949 3.61826 14.228 3.76887 14.2414 4.12597C14.271 4.91835 14.68 5.68129 15.4061 6.10048C16.1321 6.51968 16.9974 6.4924 17.6984 6.12188C18.0143 5.9549 18.1614 5.90832 18.265 5.89467C18.5937 5.8514 18.9261 5.94047 19.1891 6.14228C19.2554 6.19312 19.3395 6.27989 19.4741 6.48016C19.6125 6.68603 19.7726 6.9626 20.0107 7.375C20.2488 7.78741 20.4083 8.06438 20.5174 8.28713C20.6235 8.50382 20.6566 8.62007 20.6675 8.70287C20.7108 9.03155 20.6217 9.36397 20.4199 9.62698C20.3562 9.70995 20.2424 9.81399 19.9397 10.0041C19.2684 10.426 18.8122 11.1616 18.8121 11.9999C18.8121 12.8383 19.2683 13.574 19.9397 13.9959C20.2423 14.186 20.3561 14.29 20.4198 14.373C20.6216 14.636 20.7107 14.9684 20.6674 15.2971C20.6565 15.3799 20.6234 15.4961 20.5173 15.7128C20.4082 15.9355 20.2487 16.2125 20.0106 16.6249C19.7725 17.0373 19.6124 17.3139 19.474 17.5198C19.3394 17.72 19.2553 17.8068 19.189 17.8576C18.926 18.0595 18.5936 18.1485 18.2649 18.1053C18.1613 18.0916 18.0142 18.045 17.6983 17.8781C16.9973 17.5075 16.132 17.4803 15.4059 17.8995C14.68 18.3187 14.271 19.0816 14.2414 19.874C14.228 20.2311 14.1949 20.3817 14.1548 20.4784C14.028 20.7846 13.7846 21.028 13.4783 21.1549C13.4012 21.1868 13.284 21.2163 13.0432 21.2327C12.7958 21.2496 12.4762 21.25 12 21.25C11.5238 21.25 11.2042 21.2496 10.9567 21.2327C10.716 21.2163 10.5988 21.1868 10.5216 21.1549C10.2154 21.028 9.97201 20.7846 9.84514 20.4784C9.80512 20.3817 9.77195 20.2311 9.75859 19.874C9.72896 19.0817 9.31997 18.3187 8.5939 17.8995C7.86784 17.4803 7.00262 17.5076 6.30158 17.8781C5.98565 18.0451 5.83863 18.0917 5.73495 18.1053C5.40626 18.1486 5.07385 18.0595 4.81084 17.8577C4.74458 17.8069 4.66045 17.7201 4.52586 17.5198C4.38751 17.314 4.22736 17.0374 3.98926 16.625C3.75115 16.2126 3.59171 15.9356 3.4826 15.7129C3.37646 15.4962 3.34338 15.3799 3.33248 15.2971C3.28921 14.9684 3.37828 14.636 3.5801 14.373C3.64376 14.2901 3.75761 14.186 4.0602 13.9959C4.73158 13.5741 5.18782 12.8384 5.18786 12.0001C5.18791 11.1616 4.73165 10.4259 4.06021 10.004C3.75769 9.81389 3.64385 9.70987 3.58019 9.62691C3.37838 9.3639 3.28931 9.03149 3.33258 8.7028C3.34348 8.62001 3.37656 8.50375 3.4827 8.28707C3.59181 8.06431 3.75125 7.78734 3.98935 7.37493C4.22746 6.96253 4.3876 6.68596 4.52596 6.48009C4.66055 6.27983 4.74468 6.19305 4.81093 6.14222C5.07395 5.9404 5.40636 5.85133 5.73504 5.8946C5.83873 5.90825 5.98576 5.95483 6.30173 6.12184C7.00273 6.49235 7.86791 6.51962 8.59394 6.10045C9.31998 5.68128 9.72896 4.91837 9.75859 4.12602C9.77195 3.76889 9.80512 3.61827 9.84514 3.52165C9.97201 3.21536 10.2154 2.97202 10.5216 2.84515Z"\r\n        fill="currentColor" />\r\n</svg>';
   const name = "fanqie-assistant";
-  const version = "0.0.6";
+  const version = "0.0.7";
   const _hoisted_1$9 = {
     class: "fqa-set-dialog",
     role: "dialog",
@@ -5891,26 +6052,22 @@
   const _hoisted_41 = { class: "fqa-set-radio" };
   const _hoisted_42 = { class: "fqa-set-row" };
   const _hoisted_43 = { class: "fqa-set-row fqa-set-row-col" };
-  const _hoisted_44 = { class: "fqa-set-radios" };
-  const _hoisted_45 = { class: "fqa-set-radio" };
-  const _hoisted_46 = { class: "fqa-set-radio" };
-  const _hoisted_47 = { class: "fqa-set-row fqa-set-row-col" };
+  const _hoisted_44 = { class: "fqa-set-field" };
+  const _hoisted_45 = ["placeholder"];
+  const _hoisted_46 = { class: "fqa-set-field" };
+  const _hoisted_47 = ["placeholder"];
   const _hoisted_48 = { class: "fqa-set-field" };
   const _hoisted_49 = ["placeholder"];
-  const _hoisted_50 = { class: "fqa-set-field" };
-  const _hoisted_51 = ["placeholder"];
-  const _hoisted_52 = { class: "fqa-set-field" };
-  const _hoisted_53 = ["placeholder"];
-  const _hoisted_54 = { class: "fqa-set-actions" };
-  const _hoisted_55 = ["disabled"];
-  const _hoisted_56 = {
+  const _hoisted_50 = { class: "fqa-set-actions" };
+  const _hoisted_51 = ["disabled"];
+  const _hoisted_52 = {
     key: 0,
     class: "fqa-set-note"
   };
-  const _hoisted_57 = { class: "fqa-set-note" };
-  const _hoisted_58 = { class: "fqa-set-links" };
-  const _hoisted_59 = { class: "fqa-set-link-row" };
-  const _hoisted_60 = ["href"];
+  const _hoisted_53 = { class: "fqa-set-note" };
+  const _hoisted_54 = { class: "fqa-set-links" };
+  const _hoisted_55 = { class: "fqa-set-link-row" };
+  const _hoisted_56 = ["href"];
   const GREASYFORK = "https://greasyfork.org/zh-CN/scripts/589115-%E7%95%AA%E8%8C%84%E5%B0%8F%E8%AF%B4%E5%8A%A9%E6%89%8B";
   const GITHUB = "https://github.com/naiyQAQ/fanqie-assistant";
   const _sfc_main$9 = /* @__PURE__ */ vue.defineComponent({
@@ -5981,7 +6138,7 @@
               onClick: close2
             }, "✕"),
             vue.createElementVNode("nav", _hoisted_2$9, [
-              _cache[31] || (_cache[31] = vue.createElementVNode("div", { class: "fqa-set-side-title" }, "助手设置", -1)),
+              _cache[29] || (_cache[29] = vue.createElementVNode("div", { class: "fqa-set-side-title" }, "助手设置", -1)),
               (vue.openBlock(), vue.createElementBlock(vue.Fragment, null, vue.renderList(SECTIONS, (s) => {
                 return vue.createElementVNode("div", {
                   key: s.key,
@@ -5995,9 +6152,9 @@
             ]),
             vue.createElementVNode("section", _hoisted_4$8, [
               active.value === "general" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 0 }, [
-                _cache[37] || (_cache[37] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "常规", -1)),
+                _cache[35] || (_cache[35] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "常规", -1)),
                 vue.createElementVNode("label", _hoisted_5$8, [
-                  _cache[32] || (_cache[32] = vue.createElementVNode("span", { class: "fqa-set-label" }, "解密网页端混淆字体", -1)),
+                  _cache[30] || (_cache[30] = vue.createElementVNode("span", { class: "fqa-set-label" }, "解密网页端混淆字体", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[0] || (_cache[0] = ($event) => vue.unref(settings$1).decryptFont = $event),
                     type: "checkbox",
@@ -6007,7 +6164,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_6$8, [
-                  _cache[33] || (_cache[33] = vue.createElementVNode("span", { class: "fqa-set-label" }, "拦截网页事件上报", -1)),
+                  _cache[31] || (_cache[31] = vue.createElementVNode("span", { class: "fqa-set-label" }, "拦截网页事件上报", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[1] || (_cache[1] = ($event) => vue.unref(settings$1).blockReport = $event),
                     type: "checkbox",
@@ -6017,7 +6174,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_7$6, [
-                  _cache[34] || (_cache[34] = vue.createElementVNode("span", { class: "fqa-set-label" }, "允许阅读器复制文本", -1)),
+                  _cache[32] || (_cache[32] = vue.createElementVNode("span", { class: "fqa-set-label" }, "允许阅读器复制文本", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[2] || (_cache[2] = ($event) => vue.unref(settings$1).allowCopy = $event),
                     type: "checkbox",
@@ -6027,7 +6184,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_8$6, [
-                  _cache[35] || (_cache[35] = vue.createElementVNode("span", { class: "fqa-set-label" }, "移出书架时二次确认", -1)),
+                  _cache[33] || (_cache[33] = vue.createElementVNode("span", { class: "fqa-set-label" }, "移出书架时二次确认", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[3] || (_cache[3] = ($event) => vue.unref(settings$1).shelfRemoveConfirm = $event),
                     type: "checkbox",
@@ -6037,7 +6194,7 @@
                   ])
                 ]),
                 vue.createElementVNode("label", _hoisted_9$6, [
-                  _cache[36] || (_cache[36] = vue.createElementVNode("span", { class: "fqa-set-label" }, "退出登录时二次确认", -1)),
+                  _cache[34] || (_cache[34] = vue.createElementVNode("span", { class: "fqa-set-label" }, "退出登录时二次确认", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[4] || (_cache[4] = ($event) => vue.unref(settings$1).logoutConfirm = $event),
                     type: "checkbox",
@@ -6047,9 +6204,9 @@
                   ])
                 ])
               ], 64)) : active.value === "ui" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 1 }, [
-                _cache[46] || (_cache[46] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "界面", -1)),
+                _cache[44] || (_cache[44] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "界面", -1)),
                 vue.createElementVNode("div", _hoisted_10$6, [
-                  _cache[38] || (_cache[38] = vue.createElementVNode("span", { class: "fqa-set-label" }, "阅读器字体", -1)),
+                  _cache[36] || (_cache[36] = vue.createElementVNode("span", { class: "fqa-set-label" }, "阅读器字体", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[5] || (_cache[5] = ($event) => vue.unref(settings$1).readerFont = $event),
                     class: "fqa-set-input",
@@ -6058,10 +6215,10 @@
                   }, null, 512), [
                     [vue.vModelText, vue.unref(settings$1).readerFont]
                   ]),
-                  _cache[39] || (_cache[39] = vue.createElementVNode("p", { class: "fqa-set-note" }, "填写字体名称，例如「思源宋体」。留空则跟随网页默认。", -1))
+                  _cache[37] || (_cache[37] = vue.createElementVNode("p", { class: "fqa-set-note" }, "填写字体名称，例如「思源宋体」。留空则跟随网页默认。", -1))
                 ]),
                 vue.createElementVNode("div", _hoisted_11$5, [
-                  _cache[40] || (_cache[40] = vue.createElementVNode("span", { class: "fqa-set-label" }, "自定义 CSS", -1)),
+                  _cache[38] || (_cache[38] = vue.createElementVNode("span", { class: "fqa-set-label" }, "自定义 CSS", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[6] || (_cache[6] = ($event) => vue.unref(settings$1).customCssEnabled = $event),
                     type: "checkbox",
@@ -6080,10 +6237,10 @@
                   }, null, 8, _hoisted_13$4), [
                     [vue.vModelText, vue.unref(settings$1).customCss]
                   ]),
-                  _cache[41] || (_cache[41] = vue.createElementVNode("p", { class: "fqa-set-note" }, "关闭开关后内容会保留，只是不再应用。", -1))
+                  _cache[39] || (_cache[39] = vue.createElementVNode("p", { class: "fqa-set-note" }, "关闭开关后内容会保留，只是不再应用。", -1))
                 ]),
                 vue.createElementVNode("div", _hoisted_14$4, [
-                  _cache[44] || (_cache[44] = vue.createElementVNode("span", { class: "fqa-set-label" }, "书架单击书本", -1)),
+                  _cache[42] || (_cache[42] = vue.createElementVNode("span", { class: "fqa-set-label" }, "书架单击书本", -1)),
                   vue.createElementVNode("div", _hoisted_15$2, [
                     vue.createElementVNode("label", _hoisted_16$1, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6093,7 +6250,7 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).bookshelfClickAction]
                       ]),
-                      _cache[42] || (_cache[42] = vue.createElementVNode("span", null, "继续阅读", -1))
+                      _cache[40] || (_cache[40] = vue.createElementVNode("span", null, "继续阅读", -1))
                     ]),
                     vue.createElementVNode("label", _hoisted_17$1, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6103,15 +6260,15 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).bookshelfClickAction]
                       ]),
-                      _cache[43] || (_cache[43] = vue.createElementVNode("span", null, "查看详情", -1))
+                      _cache[41] || (_cache[41] = vue.createElementVNode("span", null, "查看详情", -1))
                     ])
                   ]),
-                  _cache[45] || (_cache[45] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 按住 Ctrl 单击去往另一项；中键在新标签页打开，Ctrl+中键同样反向。 选「继续阅读」但这本书还没读过时，会退回详情页。 ", -1))
+                  _cache[43] || (_cache[43] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 按住 Ctrl 单击去往另一项；中键在新标签页打开，Ctrl+中键同样反向。 选「继续阅读」但这本书还没读过时，会退回详情页。 ", -1))
                 ])
               ], 64)) : active.value === "search" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 2 }, [
-                _cache[50] || (_cache[50] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "搜索", -1)),
+                _cache[48] || (_cache[48] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "搜索", -1)),
                 vue.createElementVNode("label", _hoisted_18$1, [
-                  _cache[47] || (_cache[47] = vue.createElementVNode("span", { class: "fqa-set-label" }, "接管搜索界面", -1)),
+                  _cache[45] || (_cache[45] = vue.createElementVNode("span", { class: "fqa-set-label" }, "接管搜索界面", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[10] || (_cache[10] = ($event) => vue.unref(settings$1).enhanceSearch = $event),
                     type: "checkbox",
@@ -6122,7 +6279,7 @@
                 ]),
                 vue.createElementVNode("div", _hoisted_19$1, [
                   vue.createElementVNode("label", _hoisted_20, [
-                    _cache[48] || (_cache[48] = vue.createElementVNode("span", { class: "fqa-set-label" }, "个人化推荐", -1)),
+                    _cache[46] || (_cache[46] = vue.createElementVNode("span", { class: "fqa-set-label" }, "个人化推荐", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[11] || (_cache[11] = ($event) => vue.unref(settings$1).searchPersonalized = $event),
                       type: "checkbox",
@@ -6131,12 +6288,12 @@
                       [vue.vModelCheckbox, vue.unref(settings$1).searchPersonalized]
                     ])
                   ]),
-                  _cache[49] || (_cache[49] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。 凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。 ", -1))
+                  _cache[47] || (_cache[47] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 开启后搜索走同源请求，由浏览器自动带上你的登录 Cookie，番茄据此按阅读偏好排序。 凭据不经过脚本，也不会发往番茄以外的任何地方。关闭时走匿名请求。 ", -1))
                 ])
               ], 64)) : active.value === "download" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 3 }, [
-                _cache[71] || (_cache[71] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "下载", -1)),
+                _cache[69] || (_cache[69] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "下载", -1)),
                 vue.createElementVNode("label", _hoisted_21, [
-                  _cache[51] || (_cache[51] = vue.createElementVNode("span", { class: "fqa-set-label" }, "显示下载入口", -1)),
+                  _cache[49] || (_cache[49] = vue.createElementVNode("span", { class: "fqa-set-label" }, "显示下载入口", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[12] || (_cache[12] = ($event) => vue.unref(settings$1).enableDownload = $event),
                     type: "checkbox",
@@ -6146,7 +6303,7 @@
                   ])
                 ]),
                 vue.createElementVNode("div", _hoisted_22, [
-                  _cache[54] || (_cache[54] = vue.createElementVNode("span", { class: "fqa-set-label" }, "默认格式", -1)),
+                  _cache[52] || (_cache[52] = vue.createElementVNode("span", { class: "fqa-set-label" }, "默认格式", -1)),
                   vue.createElementVNode("div", _hoisted_23, [
                     vue.createElementVNode("label", _hoisted_24, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6156,7 +6313,7 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadFormat]
                       ]),
-                      _cache[52] || (_cache[52] = vue.createElementVNode("span", null, "EPUB", -1))
+                      _cache[50] || (_cache[50] = vue.createElementVNode("span", null, "EPUB", -1))
                     ]),
                     vue.createElementVNode("label", _hoisted_25, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6166,13 +6323,13 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadFormat]
                       ]),
-                      _cache[53] || (_cache[53] = vue.createElementVNode("span", null, "TXT", -1))
+                      _cache[51] || (_cache[51] = vue.createElementVNode("span", null, "TXT", -1))
                     ])
                   ]),
-                  _cache[55] || (_cache[55] = vue.createElementVNode("p", { class: "fqa-set-note" }, " EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。 ", -1))
+                  _cache[53] || (_cache[53] = vue.createElementVNode("p", { class: "fqa-set-note" }, " EPUB 保留原始排版、插图与分卷目录；TXT 是纯文本。右键菜单里可以单次指定格式。 ", -1))
                 ]),
                 vue.createElementVNode("div", _hoisted_26, [
-                  _cache[58] || (_cache[58] = vue.createElementVNode("span", { class: "fqa-set-label" }, "TXT 编码", -1)),
+                  _cache[56] || (_cache[56] = vue.createElementVNode("span", { class: "fqa-set-label" }, "TXT 编码", -1)),
                   vue.createElementVNode("div", _hoisted_27, [
                     vue.createElementVNode("label", _hoisted_28, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6182,7 +6339,7 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadCharset]
                       ]),
-                      _cache[56] || (_cache[56] = vue.createElementVNode("span", null, "UTF-8", -1))
+                      _cache[54] || (_cache[54] = vue.createElementVNode("span", null, "UTF-8", -1))
                     ]),
                     vue.createElementVNode("label", _hoisted_29, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6192,15 +6349,15 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).downloadCharset]
                       ]),
-                      _cache[57] || (_cache[57] = vue.createElementVNode("span", null, "GBK", -1))
+                      _cache[55] || (_cache[55] = vue.createElementVNode("span", null, "GBK", -1))
                     ])
                   ]),
-                  _cache[59] || (_cache[59] = vue.createElementVNode("p", { class: "fqa-set-note" }, "EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。", -1))
+                  _cache[57] || (_cache[57] = vue.createElementVNode("p", { class: "fqa-set-note" }, "EPUB 固定使用 UTF-8。老设备或部分阅读器可能需要 GBK。", -1))
                 ]),
                 vue.createElementVNode("div", _hoisted_30, [
-                  _cache[63] || (_cache[63] = vue.createElementVNode("span", { class: "fqa-set-label" }, "EPUB 选项", -1)),
+                  _cache[61] || (_cache[61] = vue.createElementVNode("span", { class: "fqa-set-label" }, "EPUB 选项", -1)),
                   vue.createElementVNode("label", _hoisted_31, [
-                    _cache[60] || (_cache[60] = vue.createElementVNode("span", { class: "fqa-set-label" }, "下载正文插图", -1)),
+                    _cache[58] || (_cache[58] = vue.createElementVNode("span", { class: "fqa-set-label" }, "下载正文插图", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[17] || (_cache[17] = ($event) => vue.unref(settings$1).downloadImages = $event),
                       type: "checkbox",
@@ -6210,7 +6367,7 @@
                     ])
                   ]),
                   vue.createElementVNode("label", _hoisted_32, [
-                    _cache[61] || (_cache[61] = vue.createElementVNode("span", { class: "fqa-set-label" }, "保留书籍排版样式", -1)),
+                    _cache[59] || (_cache[59] = vue.createElementVNode("span", { class: "fqa-set-label" }, "保留书籍排版样式", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[18] || (_cache[18] = ($event) => vue.unref(settings$1).downloadBookCss = $event),
                       type: "checkbox",
@@ -6220,7 +6377,7 @@
                     ])
                   ]),
                   vue.createElementVNode("label", _hoisted_33, [
-                    _cache[62] || (_cache[62] = vue.createElementVNode("span", { class: "fqa-set-label" }, "为每卷生成卷页", -1)),
+                    _cache[60] || (_cache[60] = vue.createElementVNode("span", { class: "fqa-set-label" }, "为每卷生成卷页", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[19] || (_cache[19] = ($event) => vue.unref(settings$1).downloadVolumePage = $event),
                       type: "checkbox",
@@ -6229,13 +6386,13 @@
                       [vue.vModelCheckbox, vue.unref(settings$1).downloadVolumePage]
                     ])
                   ]),
-                  _cache[64] || (_cache[64] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。 ", -1))
+                  _cache[62] || (_cache[62] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 插图逐张下载，图多的书会明显变慢、文件也更大；关闭后正文里仍保留图片地址，联网可看。 ", -1))
                 ]),
                 vue.createElementVNode("div", _hoisted_34, [
-                  _cache[68] || (_cache[68] = vue.createElementVNode("span", { class: "fqa-set-label" }, "请求节奏", -1)),
-                  _cache[69] || (_cache[69] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。 ", -1)),
+                  _cache[66] || (_cache[66] = vue.createElementVNode("span", { class: "fqa-set-label" }, "请求节奏", -1)),
+                  _cache[67] || (_cache[67] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 接口对批量正文有限制，调得太激进会导致大量章节抓不到甚至触发风控。不清楚就别改。 ", -1)),
                   vue.createElementVNode("label", _hoisted_35, [
-                    _cache[65] || (_cache[65] = vue.createElementVNode("span", null, "每批章节数（1-30）", -1)),
+                    _cache[63] || (_cache[63] = vue.createElementVNode("span", null, "每批章节数（1-30）", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[20] || (_cache[20] = ($event) => vue.unref(settings$1).downloadBatchSize = $event),
                       class: "fqa-set-input",
@@ -6252,7 +6409,7 @@
                     ])
                   ]),
                   vue.createElementVNode("label", _hoisted_36, [
-                    _cache[66] || (_cache[66] = vue.createElementVNode("span", null, "批次间隔 (ms)", -1)),
+                    _cache[64] || (_cache[64] = vue.createElementVNode("span", null, "批次间隔 (ms)", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[21] || (_cache[21] = ($event) => vue.unref(settings$1).downloadInterval = $event),
                       class: "fqa-set-input",
@@ -6270,7 +6427,7 @@
                     ])
                   ]),
                   vue.createElementVNode("label", _hoisted_37, [
-                    _cache[67] || (_cache[67] = vue.createElementVNode("span", null, "重试轮数", -1)),
+                    _cache[65] || (_cache[65] = vue.createElementVNode("span", null, "重试轮数", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
                       "onUpdate:modelValue": _cache[22] || (_cache[22] = ($event) => vue.unref(settings$1).downloadRetries = $event),
                       class: "fqa-set-input",
@@ -6286,7 +6443,7 @@
                       ]
                     ])
                   ]),
-                  _cache[70] || (_cache[70] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。 ", -1)),
+                  _cache[68] || (_cache[68] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 实测单次请求最多返回 30 章正文，间隔小于约 750ms 会被限流成每次 1 章。 ", -1)),
                   vue.createElementVNode("div", { class: "fqa-set-actions" }, [
                     vue.createElementVNode("button", {
                       class: "fqa-set-btn",
@@ -6295,9 +6452,9 @@
                   ])
                 ])
               ], 64)) : active.value === "audiobook" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 4 }, [
-                _cache[77] || (_cache[77] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "听书", -1)),
+                _cache[75] || (_cache[75] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "听书", -1)),
                 vue.createElementVNode("div", _hoisted_38, [
-                  _cache[74] || (_cache[74] = vue.createElementVNode("span", { class: "fqa-set-label" }, "读完一章后", -1)),
+                  _cache[72] || (_cache[72] = vue.createElementVNode("span", { class: "fqa-set-label" }, "读完一章后", -1)),
                   vue.createElementVNode("div", _hoisted_39, [
                     vue.createElementVNode("label", _hoisted_40, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6307,7 +6464,7 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).audiobookChapterEnd]
                       ]),
-                      _cache[72] || (_cache[72] = vue.createElementVNode("span", null, "自动下一章", -1))
+                      _cache[70] || (_cache[70] = vue.createElementVNode("span", null, "自动下一章", -1))
                     ]),
                     vue.createElementVNode("label", _hoisted_41, [
                       vue.withDirectives(vue.createElementVNode("input", {
@@ -6317,13 +6474,13 @@
                       }, null, 512), [
                         [vue.vModelRadio, vue.unref(settings$1).audiobookChapterEnd]
                       ]),
-                      _cache[73] || (_cache[73] = vue.createElementVNode("span", null, "停止播放", -1))
+                      _cache[71] || (_cache[71] = vue.createElementVNode("span", null, "停止播放", -1))
                     ])
                   ]),
-                  _cache[75] || (_cache[75] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 自动下一章会点击页面上的「下一章」，读到全书最后一章时自动停下。 ", -1))
+                  _cache[73] || (_cache[73] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 自动下一章会点击页面上的「下一章」，读到全书最后一章时自动停下。 ", -1))
                 ]),
                 vue.createElementVNode("label", _hoisted_42, [
-                  _cache[76] || (_cache[76] = vue.createElementVNode("span", { class: "fqa-set-label" }, "高亮并跟随朗读段落", -1)),
+                  _cache[74] || (_cache[74] = vue.createElementVNode("span", { class: "fqa-set-label" }, "高亮并跟随朗读段落", -1)),
                   vue.withDirectives(vue.createElementVNode("input", {
                     "onUpdate:modelValue": _cache[25] || (_cache[25] = ($event) => vue.unref(settings$1).audiobookFollow = $event),
                     type: "checkbox",
@@ -6332,86 +6489,60 @@
                     [vue.vModelCheckbox, vue.unref(settings$1).audiobookFollow]
                   ])
                 ]),
-                _cache[78] || (_cache[78] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 关闭后仍会高亮当前段落，但不再自动滚动页面。点击任意段落可跳到该处朗读。 ", -1))
+                _cache[76] || (_cache[76] = vue.createElementVNode("p", { class: "fqa-set-note" }, " 关闭后仍会高亮当前段落，但不再自动滚动页面。点击任意段落可跳到该处朗读。 ", -1))
               ], 64)) : active.value === "protocol" ? (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 5 }, [
-                _cache[88] || (_cache[88] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "协议", -1)),
+                _cache[82] || (_cache[82] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "协议", -1)),
                 vue.createElementVNode("div", _hoisted_43, [
-                  _cache[81] || (_cache[81] = vue.createElementVNode("span", { class: "fqa-set-label" }, "API 偏好", -1)),
-                  vue.createElementVNode("div", _hoisted_44, [
-                    vue.createElementVNode("label", _hoisted_45, [
-                      vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[26] || (_cache[26] = ($event) => vue.unref(settings$1).apiPreference = $event),
-                        type: "radio",
-                        value: "app"
-                      }, null, 512), [
-                        [vue.vModelRadio, vue.unref(settings$1).apiPreference]
-                      ]),
-                      _cache[79] || (_cache[79] = vue.createElementVNode("span", null, "番茄 APP", -1))
-                    ]),
-                    vue.createElementVNode("label", _hoisted_46, [
-                      vue.withDirectives(vue.createElementVNode("input", {
-                        "onUpdate:modelValue": _cache[27] || (_cache[27] = ($event) => vue.unref(settings$1).apiPreference = $event),
-                        type: "radio",
-                        value: "redcandle"
-                      }, null, 512), [
-                        [vue.vModelRadio, vue.unref(settings$1).apiPreference]
-                      ]),
-                      _cache[80] || (_cache[80] = vue.createElementVNode("span", null, "红烛 APP", -1))
-                    ])
-                  ]),
-                  _cache[82] || (_cache[82] = vue.createElementVNode("p", { class: "fqa-set-note" }, "如果某协议数据不全，脚本可能会选择其他接口作为补充。", -1))
-                ]),
-                vue.createElementVNode("div", _hoisted_47, [
-                  _cache[86] || (_cache[86] = vue.createElementVNode("span", { class: "fqa-set-label" }, "设备信息", -1)),
-                  _cache[87] || (_cache[87] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。 ", -1)),
-                  vue.createElementVNode("label", _hoisted_48, [
-                    _cache[83] || (_cache[83] = vue.createElementVNode("span", null, "device_id", -1)),
+                  _cache[80] || (_cache[80] = vue.createElementVNode("span", { class: "fqa-set-label" }, "设备信息", -1)),
+                  _cache[81] || (_cache[81] = vue.createElementVNode("p", { class: "fqa-set-warn" }, " 如果不知道这是什么，请保持默认。乱填可能导致脚本功能异常。 ", -1)),
+                  vue.createElementVNode("label", _hoisted_44, [
+                    _cache[77] || (_cache[77] = vue.createElementVNode("span", null, "device_id", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[28] || (_cache[28] = ($event) => vue.unref(settings$1).deviceId = $event),
+                      "onUpdate:modelValue": _cache[26] || (_cache[26] = ($event) => vue.unref(settings$1).deviceId = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.device_id || "自动注册"
-                    }, null, 8, _hoisted_49), [
+                    }, null, 8, _hoisted_45), [
                       [vue.vModelText, vue.unref(settings$1).deviceId]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_50, [
-                    _cache[84] || (_cache[84] = vue.createElementVNode("span", null, "install_id (iid)", -1)),
+                  vue.createElementVNode("label", _hoisted_46, [
+                    _cache[78] || (_cache[78] = vue.createElementVNode("span", null, "install_id (iid)", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[29] || (_cache[29] = ($event) => vue.unref(settings$1).installId = $event),
+                      "onUpdate:modelValue": _cache[27] || (_cache[27] = ($event) => vue.unref(settings$1).installId = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.install_id || "自动注册"
-                    }, null, 8, _hoisted_51), [
+                    }, null, 8, _hoisted_47), [
                       [vue.vModelText, vue.unref(settings$1).installId]
                     ])
                   ]),
-                  vue.createElementVNode("label", _hoisted_52, [
-                    _cache[85] || (_cache[85] = vue.createElementVNode("span", null, "device_type", -1)),
+                  vue.createElementVNode("label", _hoisted_48, [
+                    _cache[79] || (_cache[79] = vue.createElementVNode("span", null, "device_type", -1)),
                     vue.withDirectives(vue.createElementVNode("input", {
-                      "onUpdate:modelValue": _cache[30] || (_cache[30] = ($event) => vue.unref(settings$1).deviceType = $event),
+                      "onUpdate:modelValue": _cache[28] || (_cache[28] = ($event) => vue.unref(settings$1).deviceType = $event),
                       class: "fqa-set-input",
                       type: "text",
                       placeholder: currentDevice.value.device_type || "自动注册"
-                    }, null, 8, _hoisted_53), [
+                    }, null, 8, _hoisted_49), [
                       [vue.vModelText, vue.unref(settings$1).deviceType]
                     ])
                   ]),
-                  vue.createElementVNode("div", _hoisted_54, [
+                  vue.createElementVNode("div", _hoisted_50, [
                     vue.createElementVNode("button", {
                       class: "fqa-set-btn",
                       disabled: registering.value,
                       onClick: reRegister
-                    }, vue.toDisplayString(registering.value ? "注册中…" : "重新注册"), 9, _hoisted_55),
-                    registerMsg.value ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_56, vue.toDisplayString(registerMsg.value), 1)) : vue.createCommentVNode("", true)
+                    }, vue.toDisplayString(registering.value ? "注册中…" : "重新注册"), 9, _hoisted_51),
+                    registerMsg.value ? (vue.openBlock(), vue.createElementBlock("span", _hoisted_52, vue.toDisplayString(registerMsg.value), 1)) : vue.createCommentVNode("", true)
                   ])
                 ])
               ], 64)) : (vue.openBlock(), vue.createElementBlock(vue.Fragment, { key: 6 }, [
-                _cache[93] || (_cache[93] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "关于", -1)),
-                vue.createElementVNode("p", _hoisted_57, "番茄小说助手 v" + vue.toDisplayString(vue.unref(version)), 1),
-                vue.createElementVNode("div", _hoisted_58, [
+                _cache[87] || (_cache[87] = vue.createElementVNode("h3", { class: "fqa-set-h" }, "关于", -1)),
+                vue.createElementVNode("p", _hoisted_53, "番茄小说助手 v" + vue.toDisplayString(vue.unref(version)), 1),
+                vue.createElementVNode("div", _hoisted_54, [
                   vue.createElementVNode("div", { class: "fqa-set-link-row" }, [
-                    _cache[89] || (_cache[89] = vue.createElementVNode("span", null, "GreasyFork 地址：", -1)),
+                    _cache[83] || (_cache[83] = vue.createElementVNode("span", null, "GreasyFork 地址：", -1)),
                     vue.createElementVNode("a", {
                       href: GREASYFORK,
                       target: "_blank",
@@ -6419,31 +6550,31 @@
                     }, "跳转")
                   ]),
                   vue.createElementVNode("div", { class: "fqa-set-link-row" }, [
-                    _cache[90] || (_cache[90] = vue.createElementVNode("span", null, "GitHub 地址：", -1)),
+                    _cache[84] || (_cache[84] = vue.createElementVNode("span", null, "GitHub 地址：", -1)),
                     vue.createElementVNode("a", {
                       href: GITHUB,
                       target: "_blank",
                       rel: "noreferrer noopener"
                     }, "跳转")
                   ]),
-                  vue.createElementVNode("div", _hoisted_59, [
-                    _cache[92] || (_cache[92] = vue.createElementVNode("span", null, "问题反馈：", -1)),
+                  vue.createElementVNode("div", _hoisted_55, [
+                    _cache[86] || (_cache[86] = vue.createElementVNode("span", null, "问题反馈：", -1)),
                     vue.createElementVNode("a", {
                       href: FEEDBACK,
                       target: "_blank",
                       rel: "noreferrer noopener"
                     }, "GreasyFork"),
                     vue.createElementVNode("span", null, [
-                      _cache[91] || (_cache[91] = vue.createTextVNode(" 或 ", -1)),
+                      _cache[85] || (_cache[85] = vue.createTextVNode(" 或 ", -1)),
                       vue.createElementVNode("a", {
                         href: `${GITHUB}/issues`,
                         target: "_blank",
                         rel: "noreferrer noopener"
-                      }, " GitHub Issues ", 8, _hoisted_60)
+                      }, " GitHub Issues ", 8, _hoisted_56)
                     ])
                   ])
                 ]),
-                _cache[94] || (_cache[94] = vue.createElementVNode("div", { class: "fqa-set-license" }, [
+                _cache[88] || (_cache[88] = vue.createElementVNode("div", { class: "fqa-set-license" }, [
                   vue.createElementVNode("p", null, " 本脚本基于 GNU General Public License 3.0 授权，完全开源且免费，修改/二次开发请注意遵守开源协议。 "),
                   vue.createElementVNode("p", null, "本脚本使用 TypeScript + Vue 开发，请避免直接修改编译产物。")
                 ], -1))
@@ -6901,34 +7032,6 @@
       };
     }
   });
-  const SECOND = 1e3;
-  const MINUTE = 60 * SECOND;
-  const HOUR = 60 * MINUTE;
-  const DAY = 24 * HOUR;
-  const MONTH = 30 * DAY;
-  const YEAR = 365 * DAY;
-  function normalizeTimestamp(ts) {
-    if (!ts || ts <= 0) return 0;
-    return ts < 1e12 ? ts * 1e3 : ts;
-  }
-  function fromNow(ts) {
-    const time = normalizeTimestamp(ts);
-    if (!time) return "从未";
-    const diff = Date.now() - time;
-    if (diff < MINUTE) return "刚刚";
-    if (diff < HOUR) return `${Math.floor(diff / MINUTE)}分钟前`;
-    if (diff < DAY) return `${Math.floor(diff / HOUR)}小时前`;
-    if (diff < MONTH) return `${Math.floor(diff / DAY)}天前`;
-    if (diff < YEAR) return `${Math.floor(diff / MONTH)}个月前`;
-    return `${Math.floor(diff / YEAR)}年前`;
-  }
-  function formatDateTime(ts) {
-    const time = normalizeTimestamp(ts);
-    if (!time) return "未知";
-    const d = new Date(time);
-    const pad = (n) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
   const _hoisted_1$6 = ["title"];
   const _hoisted_2$6 = {
     key: 0,
